@@ -1,0 +1,293 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Tire Positions - URES System{% endblock %}
+
+{% block page_title %}All Tire Positions{% endblock %}
+
+{% block page_actions %}
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+        + Add Tire Position
+    </button>
+{% endblock %}
+
+{% block content %}
+
+        <!-- Filter Form -->
+    <form method="get" action="{% url 'tire_position_list' %}" class="mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Filter by Vehicle</label>
+                <select name="vehicle_filter" class="form-control" onchange="this.form.submit()">
+                    <option value="">All Vehicles</option>
+                    {% for vehicle in vehicles %}
+                        <option value="{{ vehicle.id }}" 
+                            {% if vehicle_filter == vehicle.id|stringformat:"i" %}selected{% endif %}>
+                            {{ vehicle.license_plate }} - {{ vehicle.make }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <a href="{% url 'tire_position_list' %}" class="btn btn-secondary">Clear Filter</a>
+            </div>
+        </div>
+    </form>
+
+    <!-- Active Filter Display -->
+    {% if vehicle_filter %}
+    <div class="alert alert-info d-flex justify-content-between align-items-center">
+        <div>
+            <strong>Active Filter:</strong>
+            {% for vehicle in vehicles %}
+                {% if vehicle_filter == vehicle.id|stringformat:"i" %}
+                    <span class="badge bg-primary">Vehicle: {{ vehicle.license_plate }} - {{ vehicle.make }}</span>
+                {% endif %}
+            {% endfor %}
+        </div>
+        <a href="{% url 'tire_position_list' %}" class="btn btn-sm btn-outline-danger">Clear</a>
+    </div>
+    {% endif %}
+
+
+    <!-- Search Box -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <input type="text" placeholder="Search tire positions..." id="searchInput" class="form-control" onkeyup="tableSearch()">
+        </div>
+        <div class="col-md-6 text-end">
+            <span class="text-muted">
+                Showing {{ tire_positions.count }} tire position{{ tire_positions.count|pluralize }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Tire Positions Table -->
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Vehicle</th>
+                    <th>Position Name</th>
+                    <th>Axle Number</th>
+                    <th>Wheel Number</th>
+                    <th>Is Spare</th>
+                    <th style="text-align:center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tire_position in tire_positions %}
+                    <tr id="row-{{ tire_position.id }}">
+                        <td><strong>{{ tire_position.vehicle.license_plate }}</strong></td>
+                        <td>{{ tire_position.position_name }}</td>
+                        <td>{{ tire_position.axle_number }}</td>
+                        <td>{{ tire_position.wheel_number }}</td>
+                        <td>
+                            <span class="badge {% if tire_position.is_spare %}bg-warning{% else %}bg-secondary{% endif %}">
+                                {% if tire_position.is_spare %}Yes{% else %}No{% endif %}
+                            </span>
+                        </td>
+                        <td style="text-align:center;">
+                            <!-- Edit Button -->
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal-{{ tire_position.id }}">
+                                ✏️ Edit
+                            </button>
+
+                            <!-- Details Button -->
+                            <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#detailsModal-{{ tire_position.id }}">
+                                👁️ Details
+                            </button>
+                            
+                            <!-- Delete Button -->
+                            <form method="post" action="{% url 'tire_position_delete' tire_position.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirmDelete('Are you sure you want to delete this tire position?')">
+                                    🗑️ Delete
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            No tire positions found. <a href="#" data-bs-toggle="modal" data-bs-target="#createModal">Add the first tire position</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Create Tire Position Modal -->
+    <div class="modal fade" id="createModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" action="{% url 'tire_position_create' %}">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add New Tire Position</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Vehicle</label>
+                            <select name="vehicle" class="form-control" required>
+                                <option value="">Select Vehicle</option>
+                                {% for vehicle in vehicles %}
+                                    <option value="{{ vehicle.id }}">{{ vehicle.license_plate }} - {{ vehicle.make }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Position Name</label>
+                            <input type="text" name="position_name" class="form-control" placeholder="e.g., Front Left, Rear Right" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Axle Number</label>
+                            <input type="number" name="axle_number" class="form-control" placeholder="e.g., 1, 2, 3" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Wheel Number</label>
+                            <input type="number" name="wheel_number" class="form-control" placeholder="e.g., 1, 2, 3" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Is Spare</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_spare" id="is_spare">
+                                <label class="form-check-label" for="is_spare">
+                                    This is a spare tire position
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">Create Tire Position</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit and Details Modals for each tire position -->
+    {% for tire_position in tire_positions %}
+        <!-- Edit Modal -->
+        <div class="modal fade" id="editModal-{{ tire_position.id }}">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="post" action="{% url 'tire_position_update' tire_position.id %}">
+                        {% csrf_token %}
+                        <div class="modal-header">
+                            <h5 class="modal-title">Update Tire Position</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Vehicle</label>
+                                <select name="vehicle" class="form-control" required>
+                                    <option value="">Select Vehicle</option>
+                                    {% for vehicle in vehicles %}
+                                        <option value="{{ vehicle.id }}" 
+                                            {% if tire_position.vehicle.id == vehicle.id %}selected{% endif %}>
+                                            {{ vehicle.license_plate }} - {{ vehicle.make }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Position Name</label>
+                                <input type="text" name="position_name" 
+                                       value="{{ tire_position.position_name }}" class="form-control" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Axle Number</label>
+                                <input type="number" name="axle_number" value="{{ tire_position.axle_number }}" class="form-control" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Wheel Number</label>
+                                <input type="number" name="wheel_number" value="{{ tire_position.wheel_number }}" class="form-control" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Is Spare</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="is_spare" id="is_spare_edit_{{ tire_position.id }}"
+                                        {% if tire_position.is_spare %}checked{% endif %}>
+                                    <label class="form-check-label" for="is_spare_edit_{{ tire_position.id }}">
+                                        This is a spare tire position
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-success">Update Tire Position</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Modal -->
+        <div class="modal fade" id="detailsModal-{{ tire_position.id }}">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Tire Position Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Vehicle:</strong> {{ tire_position.vehicle.license_plate }} - {{ tire_position.vehicle.make }}</p>
+                                <p><strong>Position Name:</strong> {{ tire_position.position_name }}</p>
+                                <p><strong>Axle Number:</strong> {{ tire_position.axle_number }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Wheel Number:</strong> {{ tire_position.wheel_number }}</p>
+                                <p><strong>Is Spare:</strong> 
+                                    <span class="badge {% if tire_position.is_spare %}bg-warning{% else %}bg-secondary{% endif %}">
+                                        {% if tire_position.is_spare %}Yes{% else %}No{% endif %}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function tableSearch() {
+        let input = document.getElementById("searchInput");
+        let filter = input.value.toUpperCase();
+        let table = document.getElementsByClassName("table")[0];
+        let tr = table.getElementsByTagName("tr");
+
+        for (let i = 0; i < tr.length; i++) {
+            let td = tr[i].getElementsByTagName("td")[0];
+            if (td) {
+                let txtValue = td.textContent || td.innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

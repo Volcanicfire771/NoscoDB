@@ -1,0 +1,316 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Vehicles - URES System{% endblock %}
+
+{% block page_title %}All Vehicles{% endblock %}
+
+{% block page_actions %}
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+        + Add Vehicle
+    </button>
+{% endblock %}
+
+{% block content %}
+    <!-- Filter Form -->
+    <form method="get" action="{% url 'vehicle_list' %}" class="mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select name="status_filter" class="form-control">
+                    <option value="">All Statuses</option>
+                    <option value="ACTIVE" {% if status_filter == "ACTIVE" %}selected{% endif %}>Active</option>
+                    <option value="INACTIVE" {% if status_filter == "INACTIVE" %}selected{% endif %}>Inactive</option>
+                    <option value="MAINTENANCE" {% if status_filter == "MAINTENANCE" %}selected{% endif %}>Under Maintenance</option>
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label">Vehicle Type</label>
+                <select name="type_filter" class="form-control">
+                    <option value="">All Types</option>
+                    <option value="TRUCK" {% if type_filter == "TRUCK" %}selected{% endif %}>Truck</option>
+                    <option value="TRAILER" {% if type_filter == "TRAILER" %}selected{% endif %}>Trailer</option>
+                    <option value="BUS" {% if type_filter == "BUS" %}selected{% endif %}>Bus</option>
+                    <option value="VAN" {% if type_filter == "VAN" %}selected{% endif %}>Van</option>
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label">Year</label>
+                <input type="number" name="year_filter" value="{{ year_filter }}" 
+                       placeholder="Filter by year" class="form-control" min="1990" max="2030">
+            </div>
+            
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary">Apply Filters</button>
+                <a href="{% url 'vehicle_list' %}" class="btn btn-secondary">Clear</a>
+            </div>
+        </div>
+    </form>
+
+    <!-- Active Filters Display -->
+    {% if status_filter or type_filter or year_filter %}
+    <div class="alert alert-info d-flex justify-content-between align-items-center">
+        <div>
+            <strong>Active Filters:</strong>
+            {% if status_filter %} 
+                <span class="badge bg-primary">Status: {{ status_filter }}</span>
+            {% endif %}
+            {% if type_filter %}
+                <span class="badge bg-primary">Type: {{ type_filter }}</span>
+            {% endif %}
+            {% if year_filter %}
+                <span class="badge bg-primary">Year: {{ year_filter }}</span>
+            {% endif %}
+        </div>
+        <a href="{% url 'vehicle_list' %}" class="btn btn-sm btn-outline-danger">Clear All</a>
+    </div>
+    {% endif %}
+
+    <!-- Search Box -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <input type="text" placeholder="Search vehicles..." id="searchInput" class="form-control" onkeyup="tableSearch()">
+        </div>
+        <div class="col-md-6 text-end">
+            <span class="text-muted">
+                Showing {{ vehicles.count }} vehicle{{ vehicles.count|pluralize }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Vehicles Table -->
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>License Plate</th>
+                    <th>Make</th>
+                    <th>Year</th>
+                    <th>Vehicle Type</th>
+                    <th>Status</th>
+                    <th style="text-align:center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vehicle in vehicles %}
+                    <tr id="row-{{ vehicle.id }}">
+                        <td><strong>{{ vehicle.license_plate }}</strong></td>
+                        <td>{{ vehicle.make }}</td>
+                        <td>{{ vehicle.year }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ vehicle.get_vehicle_type_display }}</span>
+                        </td>
+                        <td>
+                            <span class="badge 
+                                {% if vehicle.status == 'ACTIVE' %}bg-success
+                                {% elif vehicle.status == 'MAINTENANCE' %}bg-warning
+                                {% else %}bg-danger{% endif %}">
+                                {{ vehicle.get_status_display }}
+                            </span>
+                        </td>
+                        <td style="text-align:center;">
+                            <!-- Edit Button -->
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal-{{ vehicle.id }}">
+                                ✏️ Edit
+                            </button>
+
+                            <!-- Details Button -->
+                            <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#detailsModal-{{ vehicle.id }}">
+                                👁️ Details
+                            </button>
+                            
+                            <!-- Delete Button -->
+                            <form method="post" action="{% url 'vehicle_delete' vehicle.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirmDelete('Are you sure you want to delete vehicle {{ vehicle.license_plate }}?')">
+                                    🗑️ Delete
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            No vehicles found. <a href="#" data-bs-toggle="modal" data-bs-target="#createModal">Add the first vehicle</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Create Vehicle Modal -->
+    <div class="modal fade" id="createModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" action="{% url 'vehicle_create' %}">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add New Vehicle</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">License Plate</label>
+                            <input type="text" name="license_plate" class="form-control" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Make</label>
+                            <input type="text" name="make" class="form-control" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Year</label>
+                            <input type="number" name="year" class="form-control" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Vehicle Type</label>
+                            <select name="vehicle_type" class="form-control" required>
+                                <option value="">Select Type</option>
+                                <option value="TRUCK">Truck</option>
+                                <option value="TRAILER">Trailer</option>
+                                <option value="BUS">Bus</option>
+                                <option value="VAN">Van</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-control" required>
+                                <option value="ACTIVE">Active</option>
+                                <option value="INACTIVE">Inactive</option>
+                                <option value="MAINTENANCE">Under Maintenance</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Tire Configuration</label>
+                            <input type="text" name="tire_configuration" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">Create Vehicle</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit and Details Modals for each vehicle -->
+    {% for vehicle in vehicles %}
+        <!-- Edit Modal -->
+        <div class="modal fade" id="editModal-{{ vehicle.id }}">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="post" action="{% url 'vehicle_update' vehicle.id %}">
+                        {% csrf_token %}
+                        <div class="modal-header">
+                            <h5 class="modal-title">Update Vehicle</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label>License Plate</label>
+                                <input type="text" name="license_plate" 
+                                       value="{{ vehicle.license_plate }}" class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label>Make</label>
+                                <input type="text" name="make" 
+                                       value="{{ vehicle.make }}" class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Year</label>
+                                <input type="number" name="year" value="{{ vehicle.year }}" class="form-control" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Vehicle Type</label>
+                                <select name="vehicle_type" class="form-control" required>
+                                    <option value="">Select Type</option>
+                                    <option value="TRUCK" {% if vehicle.vehicle_type == "TRUCK" %}selected{% endif %}>Truck</option>
+                                    <option value="TRAILER" {% if vehicle.vehicle_type == "TRAILER" %}selected{% endif %}>Trailer</option>
+                                    <option value="BUS" {% if vehicle.vehicle_type == "BUS" %}selected{% endif %}>Bus</option>
+                                    <option value="VAN" {% if vehicle.vehicle_type == "VAN" %}selected{% endif %}>Van</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Status</label>
+                                <select name="status" class="form-control" required>
+                                    <option value="ACTIVE" {% if vehicle.status == "ACTIVE" %}selected{% endif %}>Active</option>
+                                    <option value="INACTIVE" {% if vehicle.status == "INACTIVE" %}selected{% endif %}>Inactive</option>
+                                    <option value="MAINTENANCE" {% if vehicle.status == "MAINTENANCE" %}selected{% endif %}>Under Maintenance</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Tire Configuration</label>
+                                <input type="text" name="tire_configuration" value="{{ vehicle.tire_configuration }}" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-success">Update Vehicle</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Modal -->
+        <div class="modal fade" id="detailsModal-{{ vehicle.id }}">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Vehicle Details - {{ vehicle.license_plate }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Make:</strong> {{ vehicle.make }}</p>
+                                <p><strong>Year:</strong> {{ vehicle.year }}</p>
+                                <p><strong>Type:</strong> {{ vehicle.get_vehicle_type_display }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Status:</strong> {{ vehicle.get_status_display }}</p>
+                                <p><strong>Tire Config:</strong> {{ vehicle.tire_configuration }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function tableSearch() {
+        let input = document.getElementById("searchInput");
+        let filter = input.value.toUpperCase();
+        let table = document.getElementsByClassName("table")[0];
+        let tr = table.getElementsByTagName("tr");
+
+        for (let i = 0; i < tr.length; i++) {
+            let td = tr[i].getElementsByTagName("td")[0];
+            if (td) {
+                let txtValue = td.textContent || td.innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}
