@@ -23,3 +23,4 @@ Developed as part of a client collaboration project where our team was tasked to
 - **Version Control:** Git + GitHub  
 
 ---
+![NoscoDB-GIF](https://github.com/user-attachments/assets/fdd68ad5-0709-4588-ace8-5dc39098abb9)
