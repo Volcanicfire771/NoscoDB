@@ -25,16 +25,23 @@ urlpatterns = [
     path('suppliers/create/', views.supplier_create, name='supplier_create'),
     path('suppliers/update/<int:id>/', views.supplier_update, name='supplier_update'),
     path('suppliers/delete/<int:id>/', views.supplier_delete, name='supplier_delete'),
-
+    
     # Employee URLs
     path('employees/', views.employee_list, name='employee_list'),
     path('employees/create/', views.employee_create, name='employee_create'),
     path('employees/update/<int:id>/', views.employee_update, name='employee_update'),
     path('employees/delete/<int:id>/', views.employee_delete, name='employee_delete'),
 
+    # Work Order URLs
+    path('work-orders/', views.work_order_list, name='work_order_list'),
+    path('work-orders/create/', views.work_order_create, name='work_order_create'),
+    path('work-orders/update/<int:id>/', views.work_order_update, name='work_order_update'),
+    path('work-orders/delete/<int:id>/', views.work_order_delete, name='work_order_delete'),
+
     # Tire Position URLs
     path('tire-position/', views.tire_position_list, name='tire_position_list'),
     path('tire-position/create/', views.tire_position_create, name='tire_position_create'),
     path('tire-position/update/<int:id>/', views.tire_position_update, name='tire_position_update'),
     path('tire-position/delete/<int:id>/', views.tire_position_delete, name='tire_position_delete'),
+
 ]
