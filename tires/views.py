@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.db.models import Q
-from .models import Vehicle, TireStatus, ServiceType, Supplier, Employee, TirePosition
+from .models import Vehicle, TireStatus, ServiceType, Supplier, Employee, TirePosition, WorkOrder
 
 
 # Vehicle Views --------------------------------------------------------------------------------------------------
@@ -144,6 +144,99 @@ def tire_status_update(request, id):
         messages.success(request, 'Status updated successfully!')  
         return redirect('tire_status_list')
 
+# Work Orders Views ------------------------------------------------------------------------------------------------------
+
+def work_order_list(request):
+    work_orders = WorkOrder.objects.all()
+    employees = Employee.objects.all()
+    vehicles = Vehicle.objects.all()
+    context = {
+        'work_orders': work_orders,
+        'employees': employees,
+        'vehicles': vehicles
+    }
+    
+    return render(request, 'work_orders/work_order_list.html', context)
+
+def work_order_delete(request, id):
+    if request.method == 'POST':
+        work_order = get_object_or_404(WorkOrder, id=id)
+        work_order.delete()
+        messages.success(request, 'Work Order deleted successfully!')
+    return redirect('work_order_list')
+
+def work_order_create(request):
+    if request.method == 'POST':
+
+        # Get data from the form
+        work_order_number = request.POST.get('work_order_number')
+        date_created = request.POST.get('date_created')
+        assigned_to_id = request.POST.get('assigned_to')
+        vehicle_id = request.POST.get('vehicle')
+        current_mileage = request.POST.get('current_mileage')
+        shift_type = request.POST.get('shift_type')
+        status = request.POST.get('status')
+        cost = request.POST.get('cost')
+        
+        assigned_to = Employee.objects.get(id=assigned_to_id)
+        vehicle = Vehicle.objects.get(id=vehicle_id)
+        
+        # Validations
+
+        # Validate work order number uniqueness
+        if WorkOrder.objects.filter(work_order_number=work_order_number).exists():
+            messages.error(request, 'Work order number already exists!')
+            return redirect('work_order_list')
+        
+        # Create the work order
+        work_order = WorkOrder.objects.create(
+            work_order_number=work_order_number,
+            assigned_to=assigned_to,
+            vehicle=vehicle,
+            current_mileage=current_mileage,
+            shift_type=shift_type,
+            status=status,
+            cost=cost
+        )
+        
+        messages.success(request, 'Work Order created successfully!')
+    
+    return redirect('work_order_list')
+
+def work_order_update(request, id):
+
+    work_order = WorkOrder.objects.get(id=id)
+    if request.method == 'POST':
+
+        new_work_order_number = request.POST.get('work_order_number')
+        assigned_to_id = request.POST.get('assigned_to')
+        vehicle_id = request.POST.get('vehicle')
+        
+        assigned_to = Employee.objects.get(id=assigned_to_id)
+        vehicle = Vehicle.objects.get(id=vehicle_id)
+        
+        # Validations
+
+        # Validate work order number uniqueness
+        if WorkOrder.objects.filter(work_order_number=new_work_order_number).exclude(id=id).exists():
+            messages.error(request, 'Work order number already exists!')
+            return redirect('work_order_list')
+        
+        # Update data
+        work_order.work_order_number = new_work_order_number
+        work_order.assigned_to = assigned_to
+        work_order.vehicle = vehicle
+        work_order.current_mileage = request.POST.get('current_mileage')
+        work_order.shift_type = request.POST.get('shift_type')
+        work_order.status = request.POST.get('status')
+        work_order.cost = request.POST.get('cost')
+        
+        work_order.save()
+        
+        messages.success(request, 'Work Order updated successfully!')
+    
+    return redirect('work_order_list')
+
 
 # Service Type Views ------------------------------------------------------------------------------------------------------
 
@@ -200,25 +293,6 @@ def supplier_list(request):
     context = {
         'suppliers': suppliers
     }
-    # # Get filter parameters from request
-    # status_filter = request.GET.get('status_filter', '')
-    # type_filter = request.GET.get('type_filter', '')
-    # year_filter = request.GET.get('year_filter', '')
-    
-    # # Apply filters
-    # if status_filter:
-    #     suppliers = suppliers.filter(status=status_filter)
-    # if type_filter:
-    #     suppliers = suppliers.filter(supplier_type=type_filter)
-    # if year_filter:
-    #     suppliers = suppliers.filter(year=year_filter)
-    
-    # context = {
-    #     'suppliers': suppliers,
-    #     'status_filter': status_filter,
-    #     'type_filter': type_filter,
-    #     'year_filter': year_filter,
-    # }
     return render(request, 'suppliers/supplier_list.html', context)
 
 def supplier_delete(request, id):
@@ -240,13 +314,7 @@ def supplier_create(request):
         address = request.POST.get('address')
         evaluation = request.POST.get('evaluation')
 
-        
-        # Validations
 
-        # Validate license plate uniqueness
-        if Supplier.objects.filter(supplier_name=supplier_name).exists():
-            messages.error(request, 'Supplier already exists!')
-            return redirect('supplier_list')
         
         # Create the supplier
         supplier = Supplier.objects.create(
@@ -269,14 +337,7 @@ def supplier_update(request, id):
     if request.method == 'POST':
 
         new_supplier_name = request.POST.get('supplier_name')
-        
-        # Validations
 
-        # Validate license plate uniqueness
-        if Supplier.objects.filter(supplier_name=new_supplier_name).exclude(id=id).exists():
-            messages.error(request, 'Supplier name already exists!')
-            return redirect('supplier_list')
-        
         # Update data
         supplier.supplier_name = new_supplier_name
         supplier.contact_person = request.POST.get('contact_person')
@@ -285,10 +346,9 @@ def supplier_update(request, id):
         supplier.email = request.POST.get('email')
         supplier.address = request.POST.get('address')
         supplier.evaluation = request.POST.get('evaluation')
-        
         supplier.save()
         
-        messages.success(request, 'supplier created successfully!')
+        messages.success(request, 'Supplier updated successfully!')
     
     return redirect('supplier_list')
 
@@ -324,7 +384,7 @@ def employee_list(request):
 
 def employee_delete(request, id):
     if request.method == 'POST':
-        employee = get_object_or_404(employee, id=id)
+        employee = get_object_or_404(Employee, id=id)
         employee.delete()
         messages.success(request, 'employee deleted successfully!')
     return redirect('employee_list')
@@ -372,8 +432,8 @@ def employee_update(request, id):
         # Validations
 
         # Validate license plate uniqueness
-        if Employee.objects.filter(employee_name=new_employment_code).exclude(id=id).exists():
-            messages.error(request, 'employee name already exists!')
+        if Employee.objects.filter(employment_code=new_employment_code).exclude(id=id).exists():
+            messages.error(request, 'employee code already exists!')
             return redirect('employee_list')
         
         # Update data

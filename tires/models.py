@@ -48,7 +48,8 @@ class Supplier(models.Model):
     
     def __str__(self):
         return self.supplier_name
-    
+
+
 class Vehicle(models.Model):
     VEHICLE_TYPES = [
         ('TRUCK', 'Truck'),
