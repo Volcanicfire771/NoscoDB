@@ -94,7 +94,7 @@ class Tire(models.Model):
     purchase_date = models.DateField()
     purchase_cost = models.DecimalField(max_digits=10, decimal_places=2)
     supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, null=True, blank=True)
-    initial_tread_depth = models.DecimalField(max_digits=4, decimal_places=2)
+    initial_tread_depth = models.DecimalField(max_digits=10, decimal_places=2)
     notes = models.TextField(blank=True)
     
     def __str__(self):

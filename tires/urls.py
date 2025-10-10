@@ -49,4 +49,22 @@ urlpatterns = [
     path('maintainance-records/create/', views.maintenance_records_create, name='maintenance_records_create'),
     path('maintainance-records/update/<int:id>/', views.maintenance_records_update, name='maintenance_records_update'),
     path('maintainance-records/delete/<int:id>/', views.maintenance_records_delete, name='maintenance_records_delete'),
+
+    # Tire Inspections URLs
+    path('tire-inspections/', views.tire_inspections_list, name='tire_inspections_list'),
+    path('tire-inspections/create/', views.tire_inspections_create, name='tire_inspections_create'),
+    path('tire-inspections/update/<int:id>/', views.tire_inspections_update, name='tire_inspections_update'),
+    path('tire-inspections/delete/<int:id>/', views.tire_inspections_delete, name='tire_inspections_delete'),
+
+    # Tires URLS
+    path('tires/', views.tires_list, name='tires_list'),
+    path('tires/create/', views.tires_create, name='tires_create'),
+    path('tires/update/<int:id>/', views.tires_update, name='tires_update'),
+    path('tires/delete/<int:id>/', views.tires_delete, name='tires_delete'),
+
+    # Tires Pattern URLS
+    path('tire-patterns/', views.tire_patterns_list, name='tire_patterns_list'),
+    path('tire-patterns/create/', views.tire_patterns_create, name='tire_patterns_create'),
+    path('tire-patterns/update/<int:id>/', views.tire_patterns_update, name='tire_patterns_update'),
+    path('tire-patterns/delete/<int:id>/', views.tire_patterns_delete, name='tire_patterns_delete'),
 ]

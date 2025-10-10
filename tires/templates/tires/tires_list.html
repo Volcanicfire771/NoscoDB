@@ -1,0 +1,384 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Tires - URES System{% endblock %}
+
+{% block page_title %}All Tires{% endblock %}
+
+{% block page_actions %}
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+        + Add Tire
+    </button>
+{% endblock %}
+
+{% block content %}
+
+    <!-- Filter Form -->
+    <form method="get" action="{% url 'tires_list' %}" class="mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Pattern</label>
+                <select name="pattern_filter" class="form-control">
+                    <option value="">All Patterns</option>
+                    {% for pattern in tire_patterns %}
+                        <option value="{{ pattern.id }}" {% if pattern_filter == pattern.id|stringformat:"i" %}selected{% endif %}>
+                            {{ pattern.pattern_code }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select name="status_filter" class="form-control">
+                    <option value="">All Statuses</option>
+                    {% for status in tire_statuses %}
+                        <option value="{{ status.id }}" {% if status_filter == status.id|stringformat:"i" %}selected{% endif %}>
+                            {{ status.status_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label">Supplier</label>
+                <select name="supplier_filter" class="form-control">
+                    <option value="">All Suppliers</option>
+                    {% for supplier in suppliers %}
+                        <option value="{{ supplier.id }}" {% if supplier_filter == supplier.id|stringformat:"i" %}selected{% endif %}>
+                            {{ supplier.supplier_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary">Apply Filters</button>
+                <a href="{% url 'tires_list' %}" class="btn btn-secondary">Clear</a>
+            </div>
+        </div>
+    </form>
+
+    <!-- Active Filters Display -->
+    {% if pattern_filter or status_filter or supplier_filter %}
+    <div class="alert alert-info d-flex justify-content-between align-items-center">
+        <div>
+            <strong>Active Filters:</strong>
+            {% if pattern_filter %} 
+                {% for pattern in tire_patterns %}
+                    {% if pattern_filter == pattern.id|stringformat:"i" %}
+                        <span class="badge bg-primary">Pattern: {{ pattern.pattern_code }}</span>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+            {% if status_filter %}
+                {% for status in tire_statuses %}
+                    {% if status_filter == status.id|stringformat:"i" %}
+                        <span class="badge bg-primary">Status: {{ status.status_name }}</span>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+            {% if supplier_filter %}
+                {% for supplier in suppliers %}
+                    {% if supplier_filter == supplier.id|stringformat:"i" %}
+                        <span class="badge bg-primary">Supplier: {{ supplier.supplier_name }}</span>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        </div>
+        <a href="{% url 'tires_list' %}" class="btn btn-sm btn-outline-danger">Clear All</a>
+    </div>
+    {% endif %}
+
+    <!-- Search Box -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <input type="text" placeholder="Search tires..." id="searchInput" class="form-control" onkeyup="tableSearch()">
+        </div>
+        <div class="col-md-6 text-end">
+            <span class="text-muted">
+                Showing {{ tires.count }} tire{{ tires.count|pluralize }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Tires Table -->
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Serial Number</th>
+                    <th>Pattern</th>
+                    <th>Status</th>
+                    <th>Purchase Date</th>
+                    <th>Purchase Cost</th>
+                    <th>Supplier</th>
+                    <th>Initial Tread Depth</th>
+                    <th style="text-align:center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tire in tires %}
+                    <tr id="row-{{ tire.id }}">
+                        <td><strong>{{ tire.serial_number }}</strong></td>
+                        <td>{{ tire.pattern.pattern_code }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ tire.status.status_name }}</span>
+                        </td>
+                        <td>{{ tire.purchase_date }}</td>
+                        <td>${{ tire.purchase_cost }}</td>
+                        <td>{{ tire.supplier.supplier_name|default:"-" }}</td>
+                        <td>{{ tire.initial_tread_depth }} mm</td>
+                        <td style="text-align:center;">
+                            <!-- Edit Button -->
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal-{{ tire.id }}">
+                                ✏️ Edit
+                            </button>
+
+                            <!-- Details Button -->
+                            <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#detailsModal-{{ tire.id }}">
+                                👁️ Details
+                            </button>
+                            
+                            <!-- Delete Button -->
+                            <form method="post" action="{% url 'tires_delete' tire.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirmDelete('Are you sure you want to delete tire {{ tire.serial_number }}?')">
+                                    🗑️ Delete
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            No tires found. <a href="#" data-bs-toggle="modal" data-bs-target="#createModal">Add the first tire</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Create Tire Modal -->
+    <div class="modal fade" id="createModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form method="post" action="{% url 'tires_create' %}">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add New Tire</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Serial Number</label>
+                                    <input type="text" name="serial_number" class="form-control" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Pattern</label>
+                                    <select name="pattern" class="form-select" required>
+                                        <option value="">Select pattern</option>
+                                        {% for pattern in tire_patterns %}
+                                            <option value="{{ pattern.id }}">{{ pattern.pattern_code }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Status</label>
+                                    <select name="status" class="form-select" required>
+                                        <option value="">Select status</option>
+                                        {% for status in tire_statuses %}
+                                            <option value="{{ status.id }}">{{ status.status_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Purchase Date</label>
+                                    <input type="date" name="purchase_date" class="form-control" required>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Purchase Cost</label>
+                                    <input type="number" step="0.01" name="purchase_cost" class="form-control" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Supplier</label>
+                                    <select name="supplier" class="form-select" required>
+                                        <option value="">Select supplier</option>
+                                        {% for supplier in suppliers %}
+                                            <option value="{{ supplier.id }}">{{ supplier.supplier_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Initial Tread Depth (mm)</label>
+                                    <input type="number" step="0.01" name="initial_tread_depth" class="form-control" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Notes</label>
+                                    <textarea name="notes" class="form-control" rows="3"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">Create Tire</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit and Details Modals for each tire -->
+    {% for tire in tires %}
+        <!-- Edit Modal -->
+        <div class="modal fade" id="editModal-{{ tire.id }}">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <form method="post" action="{% url 'tires_update' tire.id %}">
+                        {% csrf_token %}
+                        <div class="modal-header">
+                            <h5 class="modal-title">Update Tire</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Serial Number</label>
+                                        <input type="text" name="serial_number" class="form-control" value="{{ tire.serial_number }}" required>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Pattern</label>
+                                        <select name="pattern" class="form-select" required>
+                                            <option value="">Select pattern</option>
+                                            {% for pattern in tire_patterns %}
+                                                <option value="{{ pattern.id }}" {% if tire.pattern.id == pattern.id %} selected {% endif %}>{{ pattern.pattern_code }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Status</label>
+                                        <select name="status" class="form-select" required>
+                                            <option value="">Select status</option>
+                                            {% for status in tire_statuses %}
+                                                <option value="{{ status.id }}" {% if tire.status.id == status.id %} selected {% endif %}>{{ status.status_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Purchase Date</label>
+                                        <input type="date" name="purchase_date" class="form-control" value="{{ tire.purchase_date|date:'Y-m-d' }}" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Purchase Cost</label>
+                                        <input type="number" step="0.01" name="purchase_cost" class="form-control" value="{{ tire.purchase_cost }}" required>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Supplier</label>
+                                        <select name="supplier" class="form-select" required>
+                                            <option value="">Select supplier</option>
+                                            {% for supplier in suppliers %}
+                                                <option value="{{ supplier.id }}" {% if tire.supplier and tire.supplier.id == supplier.id %} selected {% endif %}>{{ supplier.supplier_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Initial Tread Depth (mm)</label>
+                                        <input type="number" step="0.01" name="initial_tread_depth" class="form-control" value="{{ tire.initial_tread_depth }}" required>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Notes</label>
+                                        <textarea name="notes" class="form-control" rows="3">{{ tire.notes|default:'' }}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-success">Update Tire</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Modal -->
+        <div class="modal fade" id="detailsModal-{{ tire.id }}">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Tire Details - {{ tire.serial_number }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Serial Number:</strong> {{ tire.serial_number }}</p>
+                                <p><strong>Pattern:</strong> {{ tire.pattern.pattern_code }}</p>
+                                <p><strong>Status:</strong> {{ tire.status.status_name }}</p>
+                                <p><strong>Purchase Date:</strong> {{ tire.purchase_date|date:"M j, Y" }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Purchase Cost:</strong> ${{ tire.purchase_cost }}</p>
+                                <p><strong>Supplier:</strong> {{ tire.supplier.supplier_name|default:"Not specified" }}</p>
+                                <p><strong>Initial Tread Depth:</strong> {{ tire.initial_tread_depth }} mm</p>
+                                <p><strong>Notes:</strong> {{ tire.notes|default:"No notes provided" }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function tableSearch() {
+        let input = document.getElementById("searchInput");
+        let filter = input.value.toUpperCase();
+        let table = document.getElementsByClassName("table")[0];
+        let tr = table.getElementsByTagName("tr");
+
+        for (let i = 0; i < tr.length; i++) {
+            let td = tr[i].getElementsByTagName("td")[0];
+            if (td) {
+                let txtValue = td.textContent || td.innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+    }
+
+    function confirmDelete(message) {
+        return confirm(message || 'Are you sure you want to delete this record?');
+    }
+</script>
+{% endblock %}

@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.db.models import Q
 # from .models import Vehicle, TireStatus, ServiceType, Supplier, Employee, TirePosition, WorkOrder
 from .models import *
+from decimal import Decimal, InvalidOperation
 
 # Vehicle Views --------------------------------------------------------------------------------------------------
 def vehicle_list(request):
@@ -638,3 +639,320 @@ def maintenance_records_update(request, id):
         messages.success(request, 'Maintenance Record updated successfully!')
     
     return redirect('maintenance_records_list')
+
+
+# Tire Inspections Views ------------------------------------------------------------------------------------------------------
+
+def tire_inspections_list(request):
+    # Start with all records
+    tire_inspections = TireInspection.objects.all()
+    tires = Tire.objects.all()
+    tire_positions = TirePosition.objects.all()
+    employees = Employee.objects.all()
+    
+    # Get filter parameters from request
+    tire_filter = request.GET.get('tire_filter', '')
+    position_filter = request.GET.get('position_filter', '')
+    inspector_filter = request.GET.get('inspector_filter', '')
+    action_filter = request.GET.get('action_filter', '')
+    
+    # Apply filters only if they exist
+    if tire_filter:
+        tire_inspections = tire_inspections.filter(tire_id=tire_filter)
+    if position_filter:
+        tire_inspections = tire_inspections.filter(position_id=position_filter)
+    if inspector_filter:
+        tire_inspections = tire_inspections.filter(inspector_id=inspector_filter)
+    if action_filter:
+        tire_inspections = tire_inspections.filter(recommended_action=action_filter)
+    
+    context = {
+        'tire_inspections': tire_inspections,
+        'tires': tires,
+        'tire_positions': tire_positions,
+        'employees': employees,
+        'tire_filter': tire_filter,
+        'position_filter': position_filter,
+        'inspector_filter': inspector_filter,
+        'action_filter': action_filter,
+    }
+    return render(request, 'tire_inspections/tire_inspections_list.html', context)
+
+def tire_inspections_delete(request, id):
+    if request.method == 'POST':
+        tire_inspection = TireInspection.objects.get(id=id)
+        tire_inspection.delete()
+        messages.success(request, 'Tire inspection deleted successfully!')
+    return redirect('tire_inspections_list')
+
+def tire_inspections_create(request):
+    if request.method == 'POST':
+        # Get data from the form
+        tire_id = request.POST.get('tire')
+        position_id = request.POST.get('position')
+        inspection_odometer = request.POST.get('inspection_odometer')
+        inspector_id = request.POST.get('inspector')
+        driver_id = request.POST.get('driver_id')
+        tread_depth = request.POST.get('tread_depth')
+        pressure = request.POST.get('pressure')
+        tire_consumption = request.POST.get('tire_consumption')
+        recommended_action = request.POST.get('recommended_action')
+
+        tire = Tire.objects.get(id=tire_id)
+        position = TirePosition.objects.get(id=position_id)
+        inspector = Employee.objects.get(id=inspector_id)
+        
+        # Create the tire inspection
+        tire_inspection = TireInspection.objects.create(
+            tire=tire,
+            position=position,
+            inspection_odometer=inspection_odometer,
+            inspector=inspector,
+            driver_id=driver_id,
+            tread_depth=tread_depth,
+            pressure=pressure,
+            tire_consumption=tire_consumption,
+            recommended_action=recommended_action,
+        )
+        
+        messages.success(request, 'Tire inspection created successfully!')
+    
+    return redirect('tire_inspections_list')
+
+def tire_inspections_update(request, id):
+    tire_inspection = TireInspection.objects.get(id=id)
+    if request.method == 'POST':
+        tire_id = request.POST.get('tire')
+        position_id = request.POST.get('position')
+        inspector_id = request.POST.get('inspector')
+
+        tire = Tire.objects.get(id=tire_id)
+        position = TirePosition.objects.get(id=position_id)
+        inspector = Employee.objects.get(id=inspector_id)
+        
+        # Update data
+        tire_inspection.tire = tire
+        tire_inspection.position = position
+        tire_inspection.inspection_odometer = request.POST.get('inspection_odometer')
+        tire_inspection.inspector = inspector
+        tire_inspection.driver_id = request.POST.get('driver_id')
+        tire_inspection.tread_depth = request.POST.get('tread_depth')
+        tire_inspection.pressure = request.POST.get('pressure')
+        tire_inspection.tire_consumption = request.POST.get('tire_consumption')
+        tire_inspection.recommended_action = request.POST.get('recommended_action')
+        
+        tire_inspection.save()
+        
+        messages.success(request, 'Tire inspection updated successfully!')
+    
+    return redirect('tire_inspections_list')
+
+
+
+
+# Tires Views ------------------------------------------------------------------------------------------------
+
+def tires_list(request):
+    # Start with all records
+    tires = Tire.objects.all()
+    tire_patterns = TirePattern.objects.all()
+    tire_statuses = TireStatus.objects.all()
+    suppliers = Supplier.objects.all()
+    
+    # Get filter parameters from request
+    pattern_filter = request.GET.get('pattern_filter', '')
+    status_filter = request.GET.get('status_filter', '')
+    supplier_filter = request.GET.get('supplier_filter', '')
+    
+    # Apply filters only if they exist
+    if pattern_filter:
+        tires = tires.filter(pattern_id=pattern_filter)  # Keep as pattern_id
+    
+    if status_filter:
+        tires = tires.filter(status_id=status_filter)  # Keep as status_id
+    
+    if supplier_filter:
+        tires = tires.filter(supplier_id=supplier_filter)  # Keep as supplier_id
+    
+    context = {
+        'tires': tires,
+        'tire_patterns': tire_patterns,
+        'tire_statuses': tire_statuses,
+        'suppliers': suppliers,
+        'pattern_filter': pattern_filter,
+        'status_filter': status_filter,
+        'supplier_filter': supplier_filter,
+    }
+    return render(request, 'tires/tires_list.html', context)
+
+def tires_delete(request, id):
+    if request.method == 'POST':
+        tire = Tire.objects.get(id=id)
+        tire.delete()
+        messages.success(request, 'Tire deleted successfully!')
+    return redirect('tires_list')
+
+
+def tires_create(request):
+    if request.method == 'POST':
+        try:
+            # Get data from the form
+            serial_number = request.POST.get('serial_number')
+            pattern_id = request.POST.get('pattern')
+            status_id = request.POST.get('status')
+            purchase_date = request.POST.get('purchase_date')
+            purchase_cost = request.POST.get('purchase_cost')
+            supplier_id = request.POST.get('supplier')
+            initial_tread_depth = request.POST.get('initial_tread_depth')
+            notes = request.POST.get('notes')
+
+            pattern = TirePattern.objects.get(id=pattern_id)
+            status = TireStatus.objects.get(id=status_id)
+            supplier = Supplier.objects.get(id=supplier_id) if supplier_id else None
+            
+            # FIX: Convert to Decimal properly
+            try:
+                purchase_cost_decimal = Decimal(purchase_cost) if purchase_cost else Decimal('0.00')
+            except (InvalidOperation, TypeError, ValueError):
+                purchase_cost_decimal = Decimal('0.00')
+                
+            try:
+                initial_tread_depth_decimal = Decimal(initial_tread_depth) if initial_tread_depth else Decimal('0.00')
+            except (InvalidOperation, TypeError, ValueError):
+                initial_tread_depth_decimal = Decimal('0.00')
+        
+            # Create the tire
+            tire = Tire.objects.create(
+                serial_number=serial_number,
+                pattern=pattern,
+                status=status,
+                purchase_date=purchase_date,
+                purchase_cost=purchase_cost_decimal,  # Use converted Decimal
+                supplier=supplier,
+                initial_tread_depth=initial_tread_depth_decimal,  # Use converted Decimal
+                notes=notes,
+            )
+            
+            messages.success(request, 'Tire created successfully!')
+            
+        except Exception as e:
+            messages.error(request, f'Error creating tire: {str(e)}')
+    
+    return redirect('tires_list')
+
+def tires_update(request, id):
+    tire = Tire.objects.get(id=id)
+    if request.method == 'POST':
+        try:
+            pattern_id = request.POST.get('pattern')
+            status_id = request.POST.get('status')
+            supplier_id = request.POST.get('supplier')
+
+            pattern = TirePattern.objects.get(id=pattern_id)
+            status = TireStatus.objects.get(id=status_id)
+            supplier = Supplier.objects.get(id=supplier_id) if supplier_id else None
+            
+            # FIX: Convert to Decimal properly
+            try:
+                purchase_cost_decimal = Decimal(request.POST.get('purchase_cost')) if request.POST.get('purchase_cost') else Decimal('0.00')
+            except (InvalidOperation, TypeError, ValueError):
+                purchase_cost_decimal = Decimal('0.00')
+                
+            try:
+                initial_tread_depth_decimal = Decimal(request.POST.get('initial_tread_depth')) if request.POST.get('initial_tread_depth') else Decimal('0.00')
+            except (InvalidOperation, TypeError, ValueError):
+                initial_tread_depth_decimal = Decimal('0.00')
+            
+            # Update data
+            tire.serial_number = request.POST.get('serial_number')
+            tire.pattern = pattern
+            tire.status = status
+            tire.purchase_date = request.POST.get('purchase_date')
+            tire.purchase_cost = purchase_cost_decimal  # Use converted Decimal
+            tire.supplier = supplier
+            tire.initial_tread_depth = initial_tread_depth_decimal  # Use converted Decimal
+            tire.notes = request.POST.get('notes')
+            
+            tire.save()
+            
+            messages.success(request, 'Tire updated successfully!')
+            
+        except Exception as e:
+            messages.error(request, f'Error updating tire: {str(e)}')
+    
+    return redirect('tires_list')
+
+# Tire Patterns Views ------------------------------------------------------------------------------------------------
+
+def tire_patterns_list(request):
+    # Start with all records
+    tire_patterns = TirePattern.objects.all()
+    
+    # Get filter parameters from request
+    brand_filter = request.GET.get('brand_filter', '')
+    country_filter = request.GET.get('country_filter', '')
+    road_type_filter = request.GET.get('road_type_filter', '')
+    
+    # Apply filters only if they exist
+    if brand_filter:
+        tire_patterns = tire_patterns.filter(brand_name__icontains=brand_filter)
+    if country_filter:
+        tire_patterns = tire_patterns.filter(country_of_origin__icontains=country_filter)
+    if road_type_filter:
+        tire_patterns = tire_patterns.filter(road_type__icontains=road_type_filter)
+    
+    context = {
+        'tire_patterns': tire_patterns,
+        'brand_filter': brand_filter,
+        'country_filter': country_filter,
+        'road_type_filter': road_type_filter,
+    }
+    return render(request, 'tire_patterns/tire_patterns_list.html', context)
+
+def tire_patterns_delete(request, id):
+    if request.method == 'POST':
+        tire_pattern = TirePattern.objects.get(id=id)
+        tire_pattern.delete()
+        messages.success(request, 'Tire pattern deleted successfully!')
+    return redirect('tire_patterns_list')
+
+def tire_patterns_create(request):
+    if request.method == 'POST':
+        # Get data from the form
+        pattern_code = request.POST.get('pattern_code')
+        brand_name = request.POST.get('brand_name')
+        country_of_origin = request.POST.get('country_of_origin')
+        load_index = request.POST.get('load_index')
+        speed_symbol = request.POST.get('speed_symbol')
+        road_type = request.POST.get('road_type')
+        
+        # Create the tire pattern
+        tire_pattern = TirePattern.objects.create(
+            pattern_code=pattern_code,
+            brand_name=brand_name,
+            country_of_origin=country_of_origin,
+            load_index=load_index,
+            speed_symbol=speed_symbol,
+            road_type=road_type,
+        )
+        
+        messages.success(request, 'Tire pattern created successfully!')
+    
+    return redirect('tire_patterns_list')
+
+def tire_patterns_update(request, id):
+    tire_pattern = TirePattern.objects.get(id=id)
+    if request.method == 'POST':
+        # Update data
+        tire_pattern.pattern_code = request.POST.get('pattern_code')
+        tire_pattern.brand_name = request.POST.get('brand_name')
+        tire_pattern.country_of_origin = request.POST.get('country_of_origin')
+        tire_pattern.load_index = request.POST.get('load_index')
+        tire_pattern.speed_symbol = request.POST.get('speed_symbol')
+        tire_pattern.road_type = request.POST.get('road_type')
+        
+        tire_pattern.save()
+        
+        messages.success(request, 'Tire pattern updated successfully!')
+    
+    return redirect('tire_patterns_list')
