@@ -175,7 +175,6 @@ class TireInspection(models.Model):
         return f"{self.tire.serial_number} - {self.inspection_date}"
 
 class MaintenanceRecord(models.Model):
-    maintenance_id = models.CharField(max_length=50, unique=True)
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, 
                               related_name='maintenance_records')
     service_type = models.ForeignKey(ServiceType, on_delete=models.PROTECT)
