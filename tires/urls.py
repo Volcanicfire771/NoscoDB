@@ -44,4 +44,9 @@ urlpatterns = [
     path('tire-position/update/<int:id>/', views.tire_position_update, name='tire_position_update'),
     path('tire-position/delete/<int:id>/', views.tire_position_delete, name='tire_position_delete'),
 
+    # Maintenance Records URLs
+    path('maintainance-records/', views.maintenance_records_list, name='maintenance_records_list'),
+    path('maintainance-records/create/', views.maintenance_records_create, name='maintenance_records_create'),
+    path('maintainance-records/update/<int:id>/', views.maintenance_records_update, name='maintenance_records_update'),
+    path('maintainance-records/delete/<int:id>/', views.maintenance_records_delete, name='maintenance_records_delete'),
 ]

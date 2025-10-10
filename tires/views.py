@@ -1,8 +1,8 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.db.models import Q
-from .models import Vehicle, TireStatus, ServiceType, Supplier, Employee, TirePosition, WorkOrder
-
+# from .models import Vehicle, TireStatus, ServiceType, Supplier, Employee, TirePosition, WorkOrder
+from .models import *
 
 # Vehicle Views --------------------------------------------------------------------------------------------------
 def vehicle_list(request):
@@ -92,7 +92,7 @@ def vehicle_update(request, id):
         
         vehicle.save()
         
-        messages.success(request, 'Vehicle created successfully!')
+        messages.success(request, 'Vehicle updated successfully!')
     
     return redirect('vehicle_list')
 
@@ -418,7 +418,7 @@ def employee_create(request):
             contact_number=contact_number,
         )
         
-        messages.success(request, 'employee created successfully!')
+        messages.success(request, 'Employee created successfully!')
     
     return redirect('employee_list')
 
@@ -446,7 +446,7 @@ def employee_update(request, id):
         
         employee.save()
         
-        messages.success(request, 'Employee created successfully!')
+        messages.success(request, 'Employee updated successfully!')
     
     return redirect('employee_list')
 
@@ -530,3 +530,111 @@ def tire_position_update(request, id):
         messages.success(request, 'Tire position updated successfully!')
     
     return redirect('tire_position_list')
+
+
+
+# Maintenance Records Views ------------------------------------------------------------------------------------------------------
+
+def maintenance_records_list(request):
+    # Start with all records
+    maintenance_records = MaintenanceRecord.objects.all()
+    vehicles = Vehicle.objects.all()
+    service_types = ServiceType.objects.all()
+    suppliers = Supplier.objects.all()
+    
+    # Get filter parameters from request
+    vehicle_filter = request.GET.get('vehicle_filter', '')
+    service_type_filter = request.GET.get('service_type_filter', '')
+    service_provider_filter = request.GET.get('service_provider_filter', '')  # Fixed parameter name
+    
+    # Apply filters only if they exist
+    if vehicle_filter:
+        maintenance_records = maintenance_records.filter(vehicle_id=vehicle_filter)
+    
+    if service_type_filter:
+        maintenance_records = maintenance_records.filter(service_type_id=service_type_filter)
+    
+    if service_provider_filter:
+        maintenance_records = maintenance_records.filter(service_provider_id=service_provider_filter)
+    
+    context = {
+        'maintenance_records': maintenance_records,
+        'vehicles': vehicles,
+        'service_types': service_types,
+        'suppliers': suppliers,
+        'vehicle_filter': vehicle_filter,
+        'service_type_filter': service_type_filter,
+        'service_provider_filter': service_provider_filter,
+    }
+    return render(request, 'maintenance_records/maintenance_records_list.html', context)
+
+def maintenance_records_delete(request, id):
+    if request.method == 'POST':
+        maintenance_record = get_object_or_404(MaintenanceRecord, id=id)
+        maintenance_record.delete()
+        messages.success(request, 'Maintenance Records deleted successfully!')
+    return redirect('maintenance_records_list')
+
+def maintenance_records_create(request):
+    if request.method == 'POST':
+
+        # Get data from the form
+        vehicle_id = request.POST.get('vehicle')
+        service_type_id = request.POST.get('service_type')
+        service_date = request.POST.get('service_date')
+        service_mileage = request.POST.get('service_mileage')
+        cost = request.POST.get('cost')
+        service_provider_id = request.POST.get('service_provider')
+        notes = request.POST.get('notes')
+
+        vehicle = Vehicle.objects.get(id=vehicle_id)
+        service_type = ServiceType.objects.get(id=service_type_id)
+        service_provider = Supplier.objects.get(id=service_provider_id)
+        # Validations
+        
+        # Create the maintenance record
+        maintenance_record = MaintenanceRecord.objects.create(
+            vehicle=vehicle,
+            service_type=service_type,
+            service_date=service_date,
+            service_mileage=service_mileage,
+            cost=cost,
+            service_provider=service_provider,
+            notes=notes,
+        )
+        
+        messages.success(request, 'Maintenance Record created successfully!')
+    
+    return redirect('maintenance_records_list')
+
+def maintenance_records_update(request, id):
+
+    maintenance_record = MaintenanceRecord.objects.get(id=id)
+    if request.method == 'POST':
+        
+        vehicle_id = request.POST.get('vehicle')
+        service_type_id = request.POST.get('service_type')
+        service_provider_id = request.POST.get('service_provider')
+
+        vehicle = Vehicle.objects.get(id=vehicle_id)
+        service_type = ServiceType.objects.get(id=service_type_id)
+        service_provider = Supplier.objects.get(id=service_provider_id)
+        
+        # Validations
+
+        
+        
+        # Update data
+        maintenance_record.vehicle = vehicle
+        maintenance_record.service_type = service_type
+        maintenance_record.service_date = request.POST.get('service_date')
+        maintenance_record.service_mileage = request.POST.get('service_mileage')
+        maintenance_record.cost = request.POST.get('cost')
+        maintenance_record.service_provider = service_provider
+        maintenance_record.notes = request.POST.get('notes')
+        
+        maintenance_record.save()
+        
+        messages.success(request, 'Maintenance Record updated successfully!')
+    
+    return redirect('maintenance_records_list')
