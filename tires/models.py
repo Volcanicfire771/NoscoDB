@@ -15,6 +15,10 @@ class TirePattern(models.Model):
     load_index = models.CharField(max_length=10)
     speed_symbol = models.CharField(max_length=5)
     road_type = models.CharField(max_length=50)
+    axle_type = models.CharField(max_length=50, default='DRIVE')  # ADDED DEFAULT
+    initial_tread_depth = models.DecimalField(max_digits=4, decimal_places=2, default=15.00)  # ADDED DEFAULT
+    discarding_tread_depth = models.DecimalField(max_digits=4, decimal_places=2, default=3.00)  # ADDED DEFAULT
+    ideal_tire_pressure = models.DecimalField(max_digits=5, decimal_places=2, default=100.00)  # ADDED DEFAULT
     
     def __str__(self):
         return f"{self.brand_name} - {self.pattern_code}"
@@ -49,7 +53,6 @@ class Supplier(models.Model):
     def __str__(self):
         return self.supplier_name
 
-
 class Vehicle(models.Model):
     VEHICLE_TYPES = [
         ('TRUCK', 'Truck'),
@@ -70,15 +73,28 @@ class Vehicle(models.Model):
     vehicle_type = models.CharField(max_length=20, choices=VEHICLE_TYPES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE')
     tire_configuration = models.CharField(max_length=100)
+    odometer = models.IntegerField(default=0)
+    number_of_or_tires = models.IntegerField(default=0)
+    number_of_sp_tires = models.IntegerField(default=0)
     
     def __str__(self):
         return f"{self.license_plate} - {self.make}"
 
 class TirePosition(models.Model):
+    AXLE_TYPES = [
+        ('STEERING', 'Steering Axle'),
+        ('DRIVE', 'Drive Axle'),
+        ('TRAILER', 'Trailer Axle'),
+        ('LIFTABLE', 'Liftable Axle'),
+    ]
+    
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name='tire_positions')
     position_name = models.CharField(max_length=50)
     axle_number = models.IntegerField()
     wheel_number = models.IntegerField()
+    axle_type = models.CharField(max_length=20, choices=AXLE_TYPES, default='DRIVE')  # ADDED DEFAULT
+    tire_order = models.IntegerField(default=1)
+    hounded_tire_id = models.CharField(max_length=100, blank=True)
     is_spare = models.BooleanField(default=False)
     
     class Meta:
@@ -86,7 +102,7 @@ class TirePosition(models.Model):
     
     def __str__(self):
         return f"{self.vehicle.license_plate} - {self.position_name}"
-    
+
 class Tire(models.Model):
     serial_number = models.CharField(max_length=100, unique=True)
     pattern = models.ForeignKey(TirePattern, on_delete=models.PROTECT)
@@ -99,27 +115,6 @@ class Tire(models.Model):
     
     def __str__(self):
         return self.serial_number
-
-class TireAssignment(models.Model):
-    tire = models.ForeignKey(Tire, on_delete=models.CASCADE, related_name='assignments')
-    from_position = models.ForeignKey(TirePosition, on_delete=models.CASCADE, 
-                                    related_name='assignments_from', null=True, blank=True)
-    to_position = models.ForeignKey(TirePosition, on_delete=models.CASCADE, 
-                                  related_name='assignments_to')
-    assignment_date = models.DateField()
-    removal_date = models.DateField(null=True, blank=True)
-    start_odometer = models.IntegerField()
-    end_odometer = models.IntegerField(null=True, blank=True)
-    removal_mileage = models.IntegerField(null=True, blank=True)
-    reason_for_removal = models.TextField(blank=True)
-    work_order = models.ForeignKey('WorkOrder', on_delete=models.CASCADE, 
-                                 related_name='tire_assignments')
-    inspector = models.ForeignKey(Employee, on_delete=models.PROTECT, 
-                                related_name='tire_assignments')
-    notes = models.TextField(blank=True)
-    
-    def __str__(self):
-        return f"{self.tire.serial_number} - {self.to_position}"
 
 class WorkOrder(models.Model):
     SHIFT_TYPES = [
@@ -138,41 +133,42 @@ class WorkOrder(models.Model):
     
     work_order_number = models.CharField(max_length=50, unique=True)
     date_created = models.DateTimeField(auto_now_add=True)
+    driver_id = models.CharField(max_length=50, blank=True)
     assigned_to = models.ForeignKey(Employee, on_delete=models.PROTECT, 
                                   related_name='work_orders')
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, 
                               related_name='work_orders')
-    current_mileage = models.IntegerField()
+    current_odometer = models.IntegerField()  # Renamed from current_mileage
     shift_type = models.CharField(max_length=20, choices=SHIFT_TYPES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    notes = models.TextField(blank=True)
     
     def __str__(self):
         return self.work_order_number
-    
-class TireInspection(models.Model):
-    RECOMMENDED_ACTIONS = [
-        ('OK', 'OK - No Action Needed'),
-        ('ROTATE', 'Rotate Tire'),
-        ('REPAIR', 'Repair Needed'),
-        ('REPLACE', 'Replace Tire'),
-        ('PRESSURE_ADJUST', 'Adjust Pressure'),
-    ]
-    
-    tire = models.ForeignKey(Tire, on_delete=models.CASCADE, related_name='inspections')
-    position = models.ForeignKey(TirePosition, on_delete=models.CASCADE)
-    inspection_odometer = models.IntegerField()
+
+class TireAssignment(models.Model):
+    tire = models.ForeignKey(Tire, on_delete=models.CASCADE, related_name='assignments')
+    from_position = models.ForeignKey(TirePosition, on_delete=models.CASCADE, 
+                                    related_name='assignments_from', null=True, blank=True)
+    to_position = models.ForeignKey(TirePosition, on_delete=models.CASCADE, 
+                                  related_name='assignments_to')
+    assignment_date = models.DateField()
+    removal_date = models.DateField(null=True, blank=True)
+    start_odometer = models.IntegerField()
+    end_odometer = models.IntegerField(null=True, blank=True)
+    removal_mileage = models.IntegerField(null=True, blank=True)
+    reason_for_removal = models.TextField(blank=True)
+    work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, 
+                                 related_name='tire_assignments')
     inspector = models.ForeignKey(Employee, on_delete=models.PROTECT, 
-                                related_name='inspections')
-    driver_id = models.CharField(max_length=50, blank=True)
-    tread_depth = models.DecimalField(max_digits=4, decimal_places=2)
-    pressure = models.DecimalField(max_digits=5, decimal_places=2)
-    tire_consumption = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    recommended_action = models.CharField(max_length=20, choices=RECOMMENDED_ACTIONS)
-    inspection_date = models.DateTimeField(auto_now_add=True)
+                                related_name='tire_assignments')
+    inspection = models.ForeignKey('TireInspection', on_delete=models.SET_NULL,
+                                 null=True, blank=True, related_name='assignments')
+    notes = models.TextField(blank=True)
     
     def __str__(self):
-        return f"{self.tire.serial_number} - {self.inspection_date}"
+        return f"{self.tire.serial_number} - {self.to_position}"
 
 class MaintenanceRecord(models.Model):
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, 
@@ -186,4 +182,35 @@ class MaintenanceRecord(models.Model):
     notes = models.TextField(blank=True)
     
     def __str__(self):
-        return self.maintenance_id
+        return f"{self.vehicle.license_plate} - {self.service_date}"
+
+class TireWearType(models.Model):
+    name = models.CharField(max_length=50)
+    wear_common_cause = models.CharField(max_length=50)
+    recovery_scheme = models.TextField()
+
+    def __str__(self):
+        return self.name
+
+class TireInspection(models.Model):
+    tire = models.ForeignKey(Tire, on_delete=models.CASCADE, related_name='inspections')
+    position = models.ForeignKey(TirePosition, on_delete=models.CASCADE)
+    inspection_odometer = models.IntegerField()
+    inspector = models.ForeignKey(Employee, on_delete=models.PROTECT, 
+                                related_name='inspections')
+    tread_depth = models.DecimalField(max_digits=4, decimal_places=2)
+    pressure = models.DecimalField(max_digits=5, decimal_places=2)
+    wear_id = models.ForeignKey(TireWearType, on_delete=models.PROTECT)
+
+    # Fields that will be calculated in views
+    consumption_rate = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    remaining_traveling_distance = models.IntegerField(default=0)
+    cost_per_mm_tread_depth = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    cost_per_1000_km_travel = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    fuel_consumption_increase = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    fuel_loss_caused = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    current_tire_value = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    balance_traveling_distance = models.IntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.tire.serial_number}"
