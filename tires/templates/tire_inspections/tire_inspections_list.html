@@ -28,14 +28,13 @@
             </div>
             
             <div class="col-md-2">
-                <label class="form-label">Position</label>
-                <select name="position_filter" class="form-control">
-                    <option value="">All Positions</option>
-                    {% for position in tire_positions %}
-                        <option value="{{ position.id }}" {% if position_filter == position.id|stringformat:"i" %}selected{% endif %}>
-                            {{ position.position_name }}
-                        </option>
-                    {% endfor %}
+                <label class="form-label">Axle Type</label>
+                <select name="axle_type_filter" class="form-control">
+                    <option value="">All Axle Types</option>
+                    <option value="STEERING" {% if axle_type_filter == "STEERING" %}selected{% endif %}>Steering</option>
+                    <option value="DRIVE" {% if axle_type_filter == "DRIVE" %}selected{% endif %}>Drive</option>
+                    <option value="TRAILER" {% if axle_type_filter == "TRAILER" %}selected{% endif %}>Trailer</option>
+                    <option value="LIFTABLE" {% if axle_type_filter == "LIFTABLE" %}selected{% endif %}>Liftable</option>
                 </select>
             </div>
             
@@ -52,14 +51,14 @@
             </div>
             
             <div class="col-md-2">
-                <label class="form-label">Action</label>
-                <select name="action_filter" class="form-control">
-                    <option value="">All Actions</option>
-                    <option value="OK" {% if action_filter == "OK" %}selected{% endif %}>OK</option>
-                    <option value="ROTATE" {% if action_filter == "ROTATE" %}selected{% endif %}>Rotate</option>
-                    <option value="REPAIR" {% if action_filter == "REPAIR" %}selected{% endif %}>Repair</option>
-                    <option value="REPLACE" {% if action_filter == "REPLACE" %}selected{% endif %}>Replace</option>
-                    <option value="PRESSURE_ADJUST" {% if action_filter == "PRESSURE_ADJUST" %}selected{% endif %}>Adjust Pressure</option>
+                <label class="form-label">Wear Type</label>
+                <select name="wear_filter" class="form-control">
+                    <option value="">All Wear Types</option>
+                    {% for wear_type in wear_types %}
+                        <option value="{{ wear_type.id }}" {% if wear_filter == wear_type.id|stringformat:"i" %}selected{% endif %}>
+                            {{ wear_type.name }}
+                        </option>
+                    {% endfor %}
                 </select>
             </div>
             
@@ -71,7 +70,7 @@
     </form>
 
     <!-- Active Filters Display -->
-    {% if tire_filter or position_filter or inspector_filter or action_filter %}
+    {% if tire_filter or axle_type_filter or inspector_filter or wear_filter %}
     <div class="alert alert-info d-flex justify-content-between align-items-center">
         <div>
             <strong>Active Filters:</strong>
@@ -82,12 +81,8 @@
                     {% endif %}
                 {% endfor %}
             {% endif %}
-            {% if position_filter %}
-                {% for position in tire_positions %}
-                    {% if position_filter == position.id|stringformat:"i" %}
-                        <span class="badge bg-primary">Position: {{ position.position_name }}</span>
-                    {% endif %}
-                {% endfor %}
+            {% if axle_type_filter %}
+                <span class="badge bg-primary">Axle Type: {{ axle_type_filter }}</span>
             {% endif %}
             {% if inspector_filter %}
                 {% for employee in employees %}
@@ -96,8 +91,12 @@
                     {% endif %}
                 {% endfor %}
             {% endif %}
-            {% if action_filter %}
-                <span class="badge bg-primary">Action: {{ action_filter }}</span>
+            {% if wear_filter %}
+                {% for wear_type in wear_types %}
+                    {% if wear_filter == wear_type.id|stringformat:"i" %}
+                        <span class="badge bg-primary">Wear: {{ wear_type.name }}</span>
+                    {% endif %}
+                {% endfor %}
             {% endif %}
         </div>
         <a href="{% url 'tire_inspections_list' %}" class="btn btn-sm btn-outline-danger">Clear All</a>
@@ -122,12 +121,13 @@
             <thead class="table-dark">
                 <tr>
                     <th>Tire Serial</th>
-                    <th>Position</th>
+                    <th>Vehicle</th>
+                    <th>Axle Type</th>
                     <th>Inspector</th>
                     <th>Odometer</th>
                     <th>Tread Depth</th>
                     <th>Pressure</th>
-                    <th>Recommended Action</th>
+                    <th>Wear Type</th>
                     <th>Inspection Date</th>
                     <th style="text-align:center;">Actions</th>
                 </tr>
@@ -136,22 +136,18 @@
                 {% for inspection in tire_inspections %}
                     <tr id="row-{{ inspection.id }}">
                         <td><strong>{{ inspection.tire.serial_number }}</strong></td>
-                        <td>{{ inspection.position.position_name }}</td>
-                        <td>{{ inspection.inspector.first_name }}</td>
+                        <td>{{ inspection.position.vehicle.license_plate }}</td>
+                        <td>{{ inspection.position.get_axle_type_display }}</td>
+                        <td>{{ inspection.inspector.first_name }} {{ inspection.inspector.last_name }}</td>
                         <td>{{ inspection.inspection_odometer }}</td>
                         <td>{{ inspection.tread_depth }} mm</td>
                         <td>{{ inspection.pressure }} PSI</td>
                         <td>
-                            <span class="badge 
-                                {% if inspection.recommended_action == 'OK' %}bg-success
-                                {% elif inspection.recommended_action == 'ROTATE' %}bg-warning
-                                {% elif inspection.recommended_action == 'REPAIR' %}bg-info
-                                {% elif inspection.recommended_action == 'REPLACE' %}bg-danger
-                                {% else %}bg-secondary{% endif %}">
-                                {{ inspection.get_recommended_action_display }}
+                            <span class="badge bg-secondary">
+                                {{ inspection.wear_id.name }}
                             </span>
                         </td>
-                        <td>{{ inspection.inspection_date|date:"M j, Y" }}</td>
+                        <td>{{ inspection.created_at|date:"M j, Y" }}</td>
                         <td style="text-align:center;">
                             <!-- Edit Button -->
                             <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal-{{ inspection.id }}">
@@ -174,7 +170,7 @@
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="9" class="text-center text-muted py-4">
+                        <td colspan="10" class="text-center text-muted py-4">
                             No tire inspections found. <a href="#" data-bs-toggle="modal" data-bs-target="#createModal">Add the first inspection</a>
                         </td>
                     </tr>
@@ -201,7 +197,7 @@
                                     <select name="tire" class="form-select" required>
                                         <option value="">Select a tire</option>
                                         {% for tire in tires %}
-                                            <option value="{{ tire.id }}">{{ tire.serial_number }}</option>
+                                            <option value="{{ tire.id }}">{{ tire.serial_number }} - {{ tire.pattern.brand_name }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -211,7 +207,7 @@
                                     <select name="position" class="form-select" required>
                                         <option value="">Select position</option>
                                         {% for position in tire_positions %}
-                                            <option value="{{ position.id }}">{{ position.position_name }}</option>
+                                            <option value="{{ position.id }}">{{ position.position_name }} ({{ position.get_axle_type_display }})</option>
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -230,11 +226,6 @@
                                     <label class="form-label">Inspection Odometer</label>
                                     <input type="number" name="inspection_odometer" class="form-control" required>
                                 </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label">Driver ID</label>
-                                    <input type="text" name="driver_id" class="form-control">
-                                </div>
                             </div>
                             
                             <div class="col-md-6">
@@ -249,21 +240,15 @@
                                 </div>
                                 
                                 <div class="mb-3">
-                                    <label class="form-label">Tire Consumption</label>
-                                    <input type="number" step="0.01" name="tire_consumption" class="form-control">
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label">Recommended Action</label>
-                                    <select name="recommended_action" class="form-select" required>
-                                        <option value="">Select action</option>
-                                        <option value="OK">OK - No Action Needed</option>
-                                        <option value="ROTATE">Rotate Tire</option>
-                                        <option value="REPAIR">Repair Needed</option>
-                                        <option value="REPLACE">Replace Tire</option>
-                                        <option value="PRESSURE_ADJUST">Adjust Pressure</option>
+                                    <label class="form-label">Wear Type</label>
+                                    <select name="wear_id" class="form-select" required>
+                                        <option value="">Select wear type</option>
+                                        {% for wear_type in wear_types %}
+                                            <option value="{{ wear_type.id }}">{{ wear_type.name }}</option>
+                                        {% endfor %}
                                     </select>
                                 </div>
+
                             </div>
                         </div>
                     </div>
@@ -296,7 +281,7 @@
                                         <select name="tire" class="form-select" required>
                                             <option value="">Select a tire</option>
                                             {% for tire in tires %}
-                                                <option value="{{ tire.id }}" {% if inspection.tire.id == tire.id %} selected {% endif %}>{{ tire.serial_number }}</option>
+                                                <option value="{{ tire.id }}" {% if inspection.tire.id == tire.id %} selected {% endif %}>{{ tire.serial_number }} - {{ tire.pattern.brand_name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -306,7 +291,7 @@
                                         <select name="position" class="form-select" required>
                                             <option value="">Select position</option>
                                             {% for position in tire_positions %}
-                                                <option value="{{ position.id }}" {% if inspection.position.id == position.id %} selected {% endif %}>{{ position.position_name }}</option>
+                                                <option value="{{ position.id }}" {% if inspection.position.id == position.id %} selected {% endif %}>{{ position.position_name }} ({{ position.get_axle_type_display }})</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -325,11 +310,6 @@
                                         <label class="form-label">Inspection Odometer</label>
                                         <input type="number" name="inspection_odometer" class="form-control" value="{{ inspection.inspection_odometer }}" required>
                                     </div>
-                                    
-                                    <div class="mb-3">
-                                        <label class="form-label">Driver ID</label>
-                                        <input type="text" name="driver_id" class="form-control" value="{{ inspection.driver_id }}">
-                                    </div>
                                 </div>
                                 
                                 <div class="col-md-6">
@@ -344,20 +324,24 @@
                                     </div>
                                     
                                     <div class="mb-3">
-                                        <label class="form-label">Tire Consumption</label>
-                                        <input type="number" step="0.01" name="tire_consumption" class="form-control" value="{{ inspection.tire_consumption|default:'' }}">
+                                        <label class="form-label">Wear Type</label>
+                                        <select name="wear_id" class="form-select" required>
+                                            <option value="">Select wear type</option>
+                                            {% for wear_type in wear_types %}
+                                                <option value="{{ wear_type.id }}" {% if inspection.wear_id.id == wear_type.id %} selected {% endif %}>{{ wear_type.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <!-- New fields for calculations -->
+                                    <div class="mb-3">
+                                        <label class="form-label">Consumption Rate</label>
+                                        <input type="number" step="0.01" name="consumption_rate" class="form-control" value="{{ inspection.consumption_rate|default:'' }}">
                                     </div>
                                     
                                     <div class="mb-3">
-                                        <label class="form-label">Recommended Action</label>
-                                        <select name="recommended_action" class="form-select" required>
-                                            <option value="">Select action</option>
-                                            <option value="OK" {% if inspection.recommended_action == "OK" %}selected{% endif %}>OK - No Action Needed</option>
-                                            <option value="ROTATE" {% if inspection.recommended_action == "ROTATE" %}selected{% endif %}>Rotate Tire</option>
-                                            <option value="REPAIR" {% if inspection.recommended_action == "REPAIR" %}selected{% endif %}>Repair Needed</option>
-                                            <option value="REPLACE" {% if inspection.recommended_action == "REPLACE" %}selected{% endif %}>Replace Tire</option>
-                                            <option value="PRESSURE_ADJUST" {% if inspection.recommended_action == "PRESSURE_ADJUST" %}selected{% endif %}>Adjust Pressure</option>
-                                        </select>
+                                        <label class="form-label">Remaining Traveling Distance</label>
+                                        <input type="number" name="remaining_traveling_distance" class="form-control" value="{{ inspection.remaining_traveling_distance|default:'' }}">
                                     </div>
                                 </div>
                             </div>
@@ -372,37 +356,71 @@
         </div>
 
         <!-- Details Modal -->
-        <div class="modal fade" id="detailsModal-{{ inspection.id }}">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Tire Inspection Details - {{ inspection.tire.serial_number }}</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<div class="modal fade" id="detailsModal-{{ inspection.id }}">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Tire Inspection Details - {{ inspection.tire.serial_number }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Tire Serial:</strong> {{ inspection.tire.serial_number }}</p>
+                        <p><strong>Pattern:</strong> {{ inspection.tire.pattern.brand_name }} - {{ inspection.tire.pattern.pattern_code }}</p>
+                        <p><strong>Vehicle:</strong> {{ inspection.position.vehicle.license_plate }}</p>
+                        <p><strong>Position:</strong> {{ inspection.position.position_name }}</p>
+                        <p><strong>Axle Type:</strong> {{ inspection.position.get_axle_type_display }}</p>
+                        <p><strong>Inspector:</strong> {{ inspection.inspector.first_name }} {{ inspection.inspector.last_name }}</p>
                     </div>
-                    <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p><strong>Tire Serial:</strong> {{ inspection.tire.serial_number }}</p>
-                                <p><strong>Position:</strong> {{ inspection.position.position_name }}</p>
-                                <p><strong>Inspector:</strong> {{ inspection.inspector.name }}</p>
-                                <p><strong>Inspection Odometer:</strong> {{ inspection.inspection_odometer }}</p>
-                                <p><strong>Driver ID:</strong> {{ inspection.driver_id|default:"Not provided" }}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <p><strong>Tread Depth:</strong> {{ inspection.tread_depth }} mm</p>
-                                <p><strong>Pressure:</strong> {{ inspection.pressure }} PSI</p>
-                                <p><strong>Tire Consumption:</strong> {{ inspection.tire_consumption|default:"Not recorded" }}</p>
-                                <p><strong>Recommended Action:</strong> {{ inspection.get_recommended_action_display }}</p>
-                                <p><strong>Inspection Date:</strong> {{ inspection.inspection_date|date:"M j, Y H:i" }}</p>
-                            </div>
-                        </div>
+                    <div class="col-md-6">
+                        <p><strong>Inspection Odometer:</strong> {{ inspection.inspection_odometer }}</p>
+                        <p><strong>Tread Depth:</strong> {{ inspection.tread_depth }} mm</p>
+                        <p><strong>Pressure:</strong> {{ inspection.pressure }} PSI</p>
+                        <p><strong>Wear Type:</strong> {{ inspection.wear_id.name }}</p>
+                        <p><strong>Wear Cause:</strong> {{ inspection.wear_id.wear_common_cause }}</p>
+                        <p><strong>Inspection Date:</strong> {{ inspection.created_at|date:"M j, Y H:i" }}</p>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+                
+                <!-- ALL CALCULATED FIELDS SECTION -->
+                <hr>
+                <h6>Calculated Metrics</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Consumption Rate:</strong> {{ inspection.consumption_rate|floatformat:2 }} mm/10,000 km</p>
+                        <p><strong>Remaining Traveling Distance:</strong> {{ inspection.remaining_traveling_distance|floatformat:0 }} km</p>
+                        <p><strong>Cost per mm Tread Depth:</strong> ${{ inspection.cost_per_mm_tread_depth|floatformat:2 }}</p>
+                        <p><strong>Cost per 1,000 Km:</strong> ${{ inspection.cost_per_1000_km_travel|floatformat:2 }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Fuel Consumption Increase:</strong> {{ inspection.fuel_consumption_increase|floatformat:2 }} L/100 km</p>
+                        <p><strong>Fuel Loss Caused:</strong> {{ inspection.fuel_loss_caused|floatformat:2 }} L</p>
+                        <p><strong>Current Tire Value:</strong> ${{ inspection.current_tire_value|floatformat:2 }}</p>
+                        <p><strong>Balance Traveling Distance:</strong> {{ inspection.balance_traveling_distance|floatformat:0 }} km</p>
+                    </div>
+                </div>
+                
+                <!-- Tire Pattern Reference Data -->
+                <hr>
+                <h6>Reference Data</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Initial Tread Depth:</strong> {{ inspection.tire.pattern.initial_tread_depth }} mm</p>
+                        <p><strong>Discarding Tread Depth:</strong> {{ inspection.tire.pattern.discarding_tread_depth }} mm</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Ideal Tire Pressure:</strong> {{ inspection.tire.pattern.ideal_tire_pressure }} PSI</p>
+                        <p><strong>Tire Purchase Price:</strong> ${{ inspection.tire.purchase_cost }}</p>
                     </div>
                 </div>
             </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
         </div>
+    </div>
+</div>
     {% endfor %}
 {% endblock %}
 
