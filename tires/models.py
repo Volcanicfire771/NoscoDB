@@ -108,9 +108,9 @@ class Tire(models.Model):
     pattern = models.ForeignKey(TirePattern, on_delete=models.PROTECT)
     status = models.ForeignKey(TireStatus, on_delete=models.PROTECT)
     purchase_date = models.DateField()
-    purchase_cost = models.DecimalField(max_digits=10, decimal_places=2)
+    purchase_cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, null=True, blank=True)
-    initial_tread_depth = models.DecimalField(max_digits=10, decimal_places=2)
+    initial_tread_depth = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     notes = models.TextField(blank=True)
     
     def __str__(self):

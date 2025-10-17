@@ -1,3 +1,4 @@
+from urllib import request
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.db.models import Q
@@ -1135,14 +1136,14 @@ def tire_assignment_list(request):
     tires = Tire.objects.all()
     tire_positions = TirePosition.objects.all()
     work_orders = WorkOrder.objects.all()
-    inspections = TireInspection.objects.all()
+    tire_inspections = TireInspection.objects.all()
 
     context = {
         'tire_assignments': tire_assignments,
         'tires': tires,
         'tire_positions': tire_positions,
         'work_orders': work_orders,
-        'inspections': inspections,
+        'tire_inspections': tire_inspections,
     }
     return render(request, 'tire_assignments/tire_assignment_list.html', context)
 
@@ -1155,13 +1156,12 @@ def tire_assignment_delete(request, id):
 
 def tire_assignment_create(request):
     if request.method == 'POST':
-
         # Get data from the form
         tire_id = request.POST.get('tire')
-        tire_position_from = request.POST.get('tire_position_from')
-        tire_position_to = request.POST.get('tire_position_to')
+        tire_position_from_id = request.POST.get('tire_position_from')
+        tire_position_to_id = request.POST.get('tire_position_to')
         work_order_id = request.POST.get('work_order')
-        inspection_id = request.POST.get('inspection')
+        #tire_inspection_id = request.POST.get('tire_inspection')
         assignment_date = request.POST.get('assignment_date')
         removal_date = request.POST.get('removal_date')
         start_odometer = request.POST.get('start_odometer')
@@ -1169,12 +1169,16 @@ def tire_assignment_create(request):
         removal_mileage = request.POST.get('removal_mileage')
         reason_for_removal = request.POST.get('reason_for_removal')
 
-        tire = Tire.objects.get(id=tire_id)
-        tire_position_from = TirePosition.objects.get(id=tire_position_from)
-        tire_position_to = TirePosition.objects.get(id=tire_position_to)
-        work_order = WorkOrder.objects.get(id=work_order_id)
-        inspection = TireInspection.objects.get(id=inspection_id)
+        #tire_inspection = TireInspection.objects.get(id=tire_inspection_id)
+
+
+        tire = get_object_or_404(Tire, id=tire_id)
+        tire_position_from = get_object_or_404(TirePosition, id=tire_position_from_id)
+        tire_position_to = get_object_or_404(TirePosition, id=tire_position_to_id)
+        work_order = get_object_or_404(WorkOrder, id=work_order_id)
+        #tire_inspection = get_object_or_404(TireInspection, id=tire_inspection_id)
         
+
         # Create the tire assignment
         tire_assignment = TireAssignment.objects.create(
             tire=tire,
@@ -1185,7 +1189,7 @@ def tire_assignment_create(request):
             start_odometer=start_odometer,
             end_odometer=end_odometer,
             work_order=work_order,
-            inspection=inspection,
+            #tire_inspection=tire_inspection,
             removal_mileage=removal_mileage,
             reason_for_removal=reason_for_removal,
         )
@@ -1196,12 +1200,13 @@ def tire_assignment_create(request):
 def tire_assignment_update(request, id):
     tire_assignment = get_object_or_404(TireAssignment, id=id)
     if request.method == 'POST':
+
         # Get data from the form
         tire_id = request.POST.get('tire')
-        tire_position_from = request.POST.get('tire_position_from')
-        tire_position_to = request.POST.get('tire_position_to')
+        tire_position_from_id = request.POST.get('tire_position_from')
+        tire_position_to_id = request.POST.get('tire_position_to')
         work_order_id = request.POST.get('work_order')
-        inspection_id = request.POST.get('inspection')
+        #tire_inspection_id = request.POST.get('tire_inspection')
         assignment_date = request.POST.get('assignment_date')
         removal_date = request.POST.get('removal_date')
         start_odometer = request.POST.get('start_odometer')
@@ -1210,10 +1215,10 @@ def tire_assignment_update(request, id):
         reason_for_removal = request.POST.get('reason_for_removal')
 
         tire = Tire.objects.get(id=tire_id)
-        tire_position_from = TirePosition.objects.get(id=tire_position_from)
-        tire_position_to = TirePosition.objects.get(id=tire_position_to)
+        tire_position_from = TirePosition.objects.get(id=tire_position_from_id)
+        tire_position_to = TirePosition.objects.get(id=tire_position_to_id)
         work_order = WorkOrder.objects.get(id=work_order_id)
-        inspection = TireInspection.objects.get(id=inspection_id)
+        #tire_inspection = TireInspection.objects.get(id=tire_inspection_id)
 
         # Update the tire assignment
         tire_assignment.tire = tire
@@ -1224,7 +1229,7 @@ def tire_assignment_update(request, id):
         tire_assignment.start_odometer = start_odometer
         tire_assignment.end_odometer = end_odometer
         tire_assignment.work_order = work_order
-        tire_assignment.inspection = inspection
+        #tire_assignment.tire_inspection = tire_inspection
         tire_assignment.removal_mileage = removal_mileage
         tire_assignment.reason_for_removal = reason_for_removal
         tire_assignment.save()
