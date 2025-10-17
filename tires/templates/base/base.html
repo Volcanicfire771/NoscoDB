@@ -55,7 +55,7 @@
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{% url 'tires_list' %}">Tire Inventory</a></li>
-                            <li><a class="dropdown-item" href="#">Tire Assignments</a></li>
+                            <li><a class="dropdown-item" href="{% url 'tire_assignment_list' %}">Tire Assignments</a></li>
                             <li><a class="dropdown-item" href="{% url 'tire_inspections_list' %}">Tire Inspections</a></li>
                         </ul>
                     </li>
@@ -101,6 +101,11 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'tire_status_list' %}">
                         📊 Tire Status
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'tire_assignment_list' %}">
+                        📋 Tire Assignments
                     </a>
                 </li>
                 <li class="nav-item">
