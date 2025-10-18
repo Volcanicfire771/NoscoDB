@@ -36,7 +36,7 @@
     <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{% url 'vehicle_list' %}">
+            <a class="navbar-brand" href="{% url 'menu_page' %}">
                 🛞 URES Tire System
             </a>
             
@@ -55,7 +55,7 @@
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{% url 'tires_list' %}">Tire Inventory</a></li>
-                            <li><a class="dropdown-item" href="#">Tire Assignments</a></li>
+                            <li><a class="dropdown-item" href="{% url 'tire_assignment_list' %}">Tire Assignments</a></li>
                             <li><a class="dropdown-item" href="{% url 'tire_inspections_list' %}">Tire Inspections</a></li>
                         </ul>
                     </li>
@@ -114,6 +114,12 @@
                         🔧 Tire Patterns
                     </a>
                 </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'tire_assignment_list' %}">
+                        📋 Tire Assignment
+                    </a>
+                </li>
                 
                 <!-- Work & Maintenance -->
                 <li class="nav-item">
@@ -143,6 +149,8 @@
                         🏢 Suppliers
                     </a>
                 </li>
+
+                
             </ul>
         </div>
     </div>

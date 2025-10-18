@@ -5,6 +5,22 @@ from django.db.models import Q
 from .models import *
 from decimal import Decimal, InvalidOperation
 
+
+# Menu Views
+def menu_page(request):
+    vehicles = Vehicle.objects.all()
+    employees = Employee.objects.all()
+    context = {
+        'vehicles':vehicles,
+        'employees':employees,
+    }
+    return render(request, 'menu/menu_page.html',context)
+
+
+
+
+
+
 # Vehicle Views --------------------------------------------------------------------------------------------------
 def vehicle_list(request):
     vehicles = Vehicle.objects.all()
@@ -202,7 +218,7 @@ def work_order_create(request):
         
         messages.success(request, 'Work Order created successfully!')
     
-    return redirect('work_order_list')
+    return redirect('tires_list')
 
 def work_order_update(request, id):
 
@@ -702,7 +718,7 @@ def tire_inspections_create(request):
         position = TirePosition.objects.get(id=position_id)
         inspector = Employee.objects.get(id=inspector_id)
         wear_type = TireWearType.objects.get(id=wear_id)
-        tire_assignment = TireAssignment.objects.get(tire=tire)
+        # tire_assignment = TireAssignment.objects.get(tire=tire)
 
         # Current values from this inspection
         CTD = float(tread_depth)  # Current Tread Depth
@@ -711,7 +727,7 @@ def tire_inspections_create(request):
         TPP = float(tire.purchase_cost)  # Tire Purchase Price
         ITD = float(tire.pattern.initial_tread_depth)  # Initial Tread Depth
         ITP = float(tire.pattern.ideal_tire_pressure)  # Ideal Tire Pressure
-        PTM = tire_assignment.end_odometer - tire_assignment.start_odometer  # Position Tire Mileage
+        # PTM = tire_assignment.end_odometer - tire_assignment.start_odometer  # Position Tire Mileage
 
         # # DEBUG: Print all input values
         # print("=== DEBUG INPUT VALUES ===")
@@ -783,7 +799,7 @@ def tire_inspections_create(request):
         # print(f"FCI: (({ITP} - {CTP}) / 10) * 0.4 = {FCI}")
 
         # Fuel Loss Caused
-        FLC = FCI * (PTM / 100)
+        # FLC = FCI * (PTM / 100)
         # print(f"FLC: {FCI} * ({PTM} / 100) = {FLC}")
 
         # Current Tire Value
@@ -818,7 +834,7 @@ def tire_inspections_create(request):
             cost_per_mm_tread_depth=Cmm,
             cost_per_1000_km_travel=CKm,
             fuel_consumption_increase=FCI,
-            fuel_loss_caused=FLC,
+            # fuel_loss_caused=FLC,
             current_tire_value=CTV,
             balance_traveling_distance=BTD,
         )
@@ -935,7 +951,8 @@ def tires_list(request):
     pattern_filter = request.GET.get('pattern_filter', '')
     status_filter = request.GET.get('status_filter', '')
     supplier_filter = request.GET.get('supplier_filter', '')
-    
+    vehicle_filter = request.GET.get('supplier_filter', '')
+
     # Apply filters only if they exist
     if pattern_filter:
         tires = tires.filter(pattern_id=pattern_filter)  # Keep as pattern_id
@@ -946,6 +963,8 @@ def tires_list(request):
     if supplier_filter:
         tires = tires.filter(supplier_id=supplier_filter)  # Keep as supplier_id
     
+    if vehicle_filter:
+        position = TirePosition.objects.get(vehicle="the one sent from previous link")
     context = {
         'tires': tires,
         'tire_patterns': tire_patterns,
@@ -1128,3 +1147,111 @@ def tire_patterns_update(request, id):
         messages.success(request, 'Tire pattern updated successfully!')
     
     return redirect('tire_patterns_list')
+
+
+# Tire Assignment Views ------------------------------------------------------------------------------------------------------
+def tire_assignment_list(request):
+    tire_assignments = TireAssignment.objects.all()
+    tires = Tire.objects.all()
+    tire_positions = TirePosition.objects.all()
+    work_orders = WorkOrder.objects.all()
+    tire_inspections = TireInspection.objects.all()
+
+    context = {
+        'tire_assignments': tire_assignments,
+        'tires': tires,
+        'tire_positions': tire_positions,
+        'work_orders': work_orders,
+        'tire_inspections': tire_inspections,
+    }
+    return render(request, 'tire_assignments/tire_assignment_list.html', context)
+
+def tire_assignment_delete(request, id):
+    tire_assignment = get_object_or_404(TireAssignment, id=id)
+    if request.method == 'POST':
+        tire_assignment.delete()
+        messages.success(request, 'Tire assignment deleted successfully!')
+    return redirect('tire_assignment_list')
+
+def tire_assignment_create(request):
+    if request.method == 'POST':
+        # Get data from the form
+        tire_id = request.POST.get('tire')
+        tire_position_from_id = request.POST.get('tire_position_from')
+        tire_position_to_id = request.POST.get('tire_position_to')
+        work_order_id = request.POST.get('work_order')
+        tire_inspection_id = request.POST.get('tire_inspection')
+        assignment_date = request.POST.get('assignment_date')
+        removal_date = request.POST.get('removal_date')
+        start_odometer = request.POST.get('start_odometer')
+        end_odometer = request.POST.get('end_odometer')
+        removal_mileage = request.POST.get('removal_mileage')
+        reason_for_removal = request.POST.get('reason_for_removal')
+
+        tire_inspection = TireInspection.objects.get(id=tire_inspection_id)
+
+
+        tire = get_object_or_404(Tire, id=tire_id)
+        tire_position_from = get_object_or_404(TirePosition, id=tire_position_from_id)
+        tire_position_to = get_object_or_404(TirePosition, id=tire_position_to_id)
+        work_order = get_object_or_404(WorkOrder, id=work_order_id)
+        tire_inspection = get_object_or_404(TireInspection, id=tire_inspection_id)
+        
+
+        # Create the tire assignment
+        tire_assignment = TireAssignment.objects.create(
+            tire=tire,
+            tire_position_from=tire_position_from,
+            tire_position_to=tire_position_to,
+            assignment_date=assignment_date,
+            removal_date=removal_date,
+            start_odometer=start_odometer,
+            end_odometer=end_odometer,
+            work_order=work_order,
+            tire_inspection=tire_inspection,
+            removal_mileage=removal_mileage,
+            reason_for_removal=reason_for_removal,
+        )
+        
+        messages.success(request, 'Tire assignment created successfully!')
+    return redirect('tire_assignment_list')
+    
+def tire_assignment_update(request, id):
+    tire_assignment = get_object_or_404(TireAssignment, id=id)
+    if request.method == 'POST':
+
+        # Get data from the form
+        tire_id = request.POST.get('tire')
+        tire_position_from_id = request.POST.get('tire_position_from')
+        tire_position_to_id = request.POST.get('tire_position_to')
+        work_order_id = request.POST.get('work_order')
+        tire_inspection_id = request.POST.get('tire_inspection')
+        assignment_date = request.POST.get('assignment_date')
+        removal_date = request.POST.get('removal_date')
+        start_odometer = request.POST.get('start_odometer')
+        end_odometer = request.POST.get('end_odometer')
+        removal_mileage = request.POST.get('removal_mileage')
+        reason_for_removal = request.POST.get('reason_for_removal')
+
+        tire = Tire.objects.get(id=tire_id)
+        tire_position_from = TirePosition.objects.get(id=tire_position_from_id)
+        tire_position_to = TirePosition.objects.get(id=tire_position_to_id)
+        work_order = WorkOrder.objects.get(id=work_order_id)
+        tire_inspection = TireInspection.objects.get(id=tire_inspection_id)
+
+        # Update the tire assignment
+        tire_assignment.tire = tire
+        tire_assignment.tire_position_from = tire_position_from
+        tire_assignment.tire_position_to = tire_position_to
+        tire_assignment.assignment_date = assignment_date
+        tire_assignment.removal_date = removal_date
+        tire_assignment.start_odometer = start_odometer
+        tire_assignment.end_odometer = end_odometer
+        tire_assignment.work_order = work_order
+        tire_assignment.tire_inspection = tire_inspection
+        tire_assignment.removal_mileage = removal_mileage
+        tire_assignment.reason_for_removal = reason_for_removal
+        tire_assignment.save()
+
+        messages.success(request, 'Tire assignment updated successfully!')
+    return redirect('tire_assignment_list')
