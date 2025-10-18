@@ -1128,3 +1128,111 @@ def tire_patterns_update(request, id):
         messages.success(request, 'Tire pattern updated successfully!')
     
     return redirect('tire_patterns_list')
+
+
+# Tire Assignment Views ------------------------------------------------------------------------------------------------------
+def tire_assignment_list(request):
+    tire_assignments = TireAssignment.objects.all()
+    tires = Tire.objects.all()
+    tire_positions = TirePosition.objects.all()
+    work_orders = WorkOrder.objects.all()
+    tire_inspections = TireInspection.objects.all()
+
+    context = {
+        'tire_assignments': tire_assignments,
+        'tires': tires,
+        'tire_positions': tire_positions,
+        'work_orders': work_orders,
+        'tire_inspections': tire_inspections,
+    }
+    return render(request, 'tire_assignments/tire_assignment_list.html', context)
+
+def tire_assignment_delete(request, id):
+    tire_assignment = get_object_or_404(TireAssignment, id=id)
+    if request.method == 'POST':
+        tire_assignment.delete()
+        messages.success(request, 'Tire assignment deleted successfully!')
+    return redirect('tire_assignment_list')
+
+def tire_assignment_create(request):
+    if request.method == 'POST':
+        # Get data from the form
+        tire_id = request.POST.get('tire')
+        tire_position_from_id = request.POST.get('tire_position_from')
+        tire_position_to_id = request.POST.get('tire_position_to')
+        work_order_id = request.POST.get('work_order')
+        tire_inspection_id = request.POST.get('tire_inspection')
+        assignment_date = request.POST.get('assignment_date')
+        removal_date = request.POST.get('removal_date')
+        start_odometer = request.POST.get('start_odometer')
+        end_odometer = request.POST.get('end_odometer')
+        removal_mileage = request.POST.get('removal_mileage')
+        reason_for_removal = request.POST.get('reason_for_removal')
+
+        tire_inspection = TireInspection.objects.get(id=tire_inspection_id)
+
+
+        tire = get_object_or_404(Tire, id=tire_id)
+        tire_position_from = get_object_or_404(TirePosition, id=tire_position_from_id)
+        tire_position_to = get_object_or_404(TirePosition, id=tire_position_to_id)
+        work_order = get_object_or_404(WorkOrder, id=work_order_id)
+        tire_inspection = get_object_or_404(TireInspection, id=tire_inspection_id)
+        
+
+        # Create the tire assignment
+        tire_assignment = TireAssignment.objects.create(
+            tire=tire,
+            tire_position_from=tire_position_from,
+            tire_position_to=tire_position_to,
+            assignment_date=assignment_date,
+            removal_date=removal_date,
+            start_odometer=start_odometer,
+            end_odometer=end_odometer,
+            work_order=work_order,
+            tire_inspection=tire_inspection,
+            removal_mileage=removal_mileage,
+            reason_for_removal=reason_for_removal,
+        )
+        
+        messages.success(request, 'Tire assignment created successfully!')
+    return redirect('tire_assignment_list')
+    
+def tire_assignment_update(request, id):
+    tire_assignment = get_object_or_404(TireAssignment, id=id)
+    if request.method == 'POST':
+
+        # Get data from the form
+        tire_id = request.POST.get('tire')
+        tire_position_from_id = request.POST.get('tire_position_from')
+        tire_position_to_id = request.POST.get('tire_position_to')
+        work_order_id = request.POST.get('work_order')
+        tire_inspection_id = request.POST.get('tire_inspection')
+        assignment_date = request.POST.get('assignment_date')
+        removal_date = request.POST.get('removal_date')
+        start_odometer = request.POST.get('start_odometer')
+        end_odometer = request.POST.get('end_odometer')
+        removal_mileage = request.POST.get('removal_mileage')
+        reason_for_removal = request.POST.get('reason_for_removal')
+
+        tire = Tire.objects.get(id=tire_id)
+        tire_position_from = TirePosition.objects.get(id=tire_position_from_id)
+        tire_position_to = TirePosition.objects.get(id=tire_position_to_id)
+        work_order = WorkOrder.objects.get(id=work_order_id)
+        tire_inspection = TireInspection.objects.get(id=tire_inspection_id)
+
+        # Update the tire assignment
+        tire_assignment.tire = tire
+        tire_assignment.tire_position_from = tire_position_from
+        tire_assignment.tire_position_to = tire_position_to
+        tire_assignment.assignment_date = assignment_date
+        tire_assignment.removal_date = removal_date
+        tire_assignment.start_odometer = start_odometer
+        tire_assignment.end_odometer = end_odometer
+        tire_assignment.work_order = work_order
+        tire_assignment.tire_inspection = tire_inspection
+        tire_assignment.removal_mileage = removal_mileage
+        tire_assignment.reason_for_removal = reason_for_removal
+        tire_assignment.save()
+
+        messages.success(request, 'Tire assignment updated successfully!')
+    return redirect('tire_assignment_list')

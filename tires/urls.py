@@ -67,4 +67,10 @@ urlpatterns = [
     path('tire-patterns/create/', views.tire_patterns_create, name='tire_patterns_create'),
     path('tire-patterns/update/<int:id>/', views.tire_patterns_update, name='tire_patterns_update'),
     path('tire-patterns/delete/<int:id>/', views.tire_patterns_delete, name='tire_patterns_delete'),
+
+    # Tire Assignment URLS
+    path('tire-assignment/', views.tire_assignment_list, name='tire_assignment_list'),
+    path('tire-assignment/create/', views.tire_assignment_create, name='tire_assignment_create'),
+    path('tire-assignment/update/<int:id>/', views.tire_assignment_update, name='tire_assignment_update'),
+    path('tire-assignment/delete/<int:id>/', views.tire_assignment_delete, name='tire_assignment_delete'),
 ]

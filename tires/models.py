@@ -147,28 +147,7 @@ class WorkOrder(models.Model):
     def __str__(self):
         return self.work_order_number
 
-class TireAssignment(models.Model):
-    tire = models.ForeignKey(Tire, on_delete=models.CASCADE, related_name='assignments')
-    from_position = models.ForeignKey(TirePosition, on_delete=models.CASCADE, 
-                                    related_name='assignments_from', null=True, blank=True)
-    to_position = models.ForeignKey(TirePosition, on_delete=models.CASCADE, 
-                                  related_name='assignments_to')
-    assignment_date = models.DateField()
-    removal_date = models.DateField(null=True, blank=True)
-    start_odometer = models.IntegerField()
-    end_odometer = models.IntegerField(null=True, blank=True)
-    removal_mileage = models.IntegerField(null=True, blank=True)
-    reason_for_removal = models.TextField(blank=True)
-    work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, 
-                                 related_name='tire_assignments')
-    inspector = models.ForeignKey(Employee, on_delete=models.PROTECT, 
-                                related_name='tire_assignments')
-    inspection = models.ForeignKey('TireInspection', on_delete=models.SET_NULL,
-                                 null=True, blank=True, related_name='assignments')
-    notes = models.TextField(blank=True)
-    
-    def __str__(self):
-        return f"{self.tire.serial_number} - {self.to_position}"
+
 
 class MaintenanceRecord(models.Model):
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, 
@@ -214,3 +193,25 @@ class TireInspection(models.Model):
 
     def __str__(self):
         return f"{self.tire.serial_number}"
+
+
+
+class TireAssignment(models.Model):
+    tire = models.ForeignKey(Tire, on_delete=models.CASCADE, related_name='assignments')
+    tire_position_from = models.ForeignKey(TirePosition, on_delete=models.CASCADE, 
+                                    related_name='assignments_from', null=True, blank=True)
+    tire_position_to = models.ForeignKey(TirePosition, on_delete=models.CASCADE, 
+                                  related_name='assignments_to')
+    assignment_date = models.DateField()
+    removal_date = models.DateField(null=True, blank=True)
+    start_odometer = models.IntegerField()
+    end_odometer = models.IntegerField(null=True, blank=True)
+    removal_mileage = models.IntegerField(null=True, blank=True)
+    reason_for_removal = models.TextField(blank=True)
+    work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, 
+                                 related_name='tire_assignments')
+    inspection = models.ForeignKey(TireInspection, on_delete=models.SET_NULL,null=True, blank=True, related_name='assignments')
+    notes = models.TextField(blank=True)
+
+    def str(self):
+        return f"{self.tire.serial_number} - {self.tire_position_to}"
