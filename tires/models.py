@@ -118,17 +118,15 @@ class Tire(models.Model):
 
 class WorkOrder(models.Model):
     SHIFT_TYPES = [
-        ('INSTALLATION', 'Tire Installation'),
-        ('REMOVAL', 'Tire Removal'),
-        ('ROTATION', 'Tire Rotation'),
-        ('REPAIR', 'Tire Repair'),
+        ('INSPECTION', 'Tire Inspection'),
+        ('ASSIGNMENT', 'Tire Assignment'),
     ]
     
     STATUS_CHOICES = [
         ('PENDING', 'Pending'),
-        ('IN_PROGRESS', 'In Progress'),
+        ('OPENED', 'Opened'),
         ('COMPLETED', 'Completed'),
-        ('CANCELLED', 'Cancelled'),
+        ('CLOSED', 'Closed'),
     ]
     
     work_order_number = models.CharField(max_length=50, unique=True)
@@ -210,7 +208,8 @@ class TireAssignment(models.Model):
     reason_for_removal = models.TextField(blank=True)
     work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, 
                                  related_name='tire_assignments')
-    inspection = models.ForeignKey(TireInspection, on_delete=models.SET_NULL,null=True, blank=True, related_name='assignments')
+    inspection = models.ForeignKey(TireInspection, on_delete=models.SET_NULL,
+                                null=True, blank=True, related_name='assignments')
     notes = models.TextField(blank=True)
 
     def str(self):

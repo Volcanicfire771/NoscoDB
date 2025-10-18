@@ -5,6 +5,22 @@ from django.db.models import Q
 from .models import *
 from decimal import Decimal, InvalidOperation
 
+
+# Menu Views
+def menu_page(request):
+    vehicles = Vehicle.objects.all()
+    employees = Employee.objects.all()
+    context = {
+        'vehicles':vehicles,
+        'employees':employees,
+    }
+    return render(request, 'menu/menu_page.html',context)
+
+
+
+
+
+
 # Vehicle Views --------------------------------------------------------------------------------------------------
 def vehicle_list(request):
     vehicles = Vehicle.objects.all()
@@ -202,7 +218,7 @@ def work_order_create(request):
         
         messages.success(request, 'Work Order created successfully!')
     
-    return redirect('work_order_list')
+    return redirect('tires_list')
 
 def work_order_update(request, id):
 
@@ -702,7 +718,7 @@ def tire_inspections_create(request):
         position = TirePosition.objects.get(id=position_id)
         inspector = Employee.objects.get(id=inspector_id)
         wear_type = TireWearType.objects.get(id=wear_id)
-        tire_assignment = TireAssignment.objects.get(tire=tire)
+        # tire_assignment = TireAssignment.objects.get(tire=tire)
 
         # Current values from this inspection
         CTD = float(tread_depth)  # Current Tread Depth
@@ -711,7 +727,7 @@ def tire_inspections_create(request):
         TPP = float(tire.purchase_cost)  # Tire Purchase Price
         ITD = float(tire.pattern.initial_tread_depth)  # Initial Tread Depth
         ITP = float(tire.pattern.ideal_tire_pressure)  # Ideal Tire Pressure
-        PTM = tire_assignment.end_odometer - tire_assignment.start_odometer  # Position Tire Mileage
+        # PTM = tire_assignment.end_odometer - tire_assignment.start_odometer  # Position Tire Mileage
 
         # # DEBUG: Print all input values
         # print("=== DEBUG INPUT VALUES ===")
@@ -783,7 +799,7 @@ def tire_inspections_create(request):
         # print(f"FCI: (({ITP} - {CTP}) / 10) * 0.4 = {FCI}")
 
         # Fuel Loss Caused
-        FLC = FCI * (PTM / 100)
+        # FLC = FCI * (PTM / 100)
         # print(f"FLC: {FCI} * ({PTM} / 100) = {FLC}")
 
         # Current Tire Value
@@ -818,7 +834,7 @@ def tire_inspections_create(request):
             cost_per_mm_tread_depth=Cmm,
             cost_per_1000_km_travel=CKm,
             fuel_consumption_increase=FCI,
-            fuel_loss_caused=FLC,
+            # fuel_loss_caused=FLC,
             current_tire_value=CTV,
             balance_traveling_distance=BTD,
         )
@@ -935,7 +951,8 @@ def tires_list(request):
     pattern_filter = request.GET.get('pattern_filter', '')
     status_filter = request.GET.get('status_filter', '')
     supplier_filter = request.GET.get('supplier_filter', '')
-    
+    vehicle_filter = request.GET.get('supplier_filter', '')
+
     # Apply filters only if they exist
     if pattern_filter:
         tires = tires.filter(pattern_id=pattern_filter)  # Keep as pattern_id
@@ -946,6 +963,8 @@ def tires_list(request):
     if supplier_filter:
         tires = tires.filter(supplier_id=supplier_filter)  # Keep as supplier_id
     
+    if vehicle_filter:
+        position = TirePosition.objects.get(vehicle="the one sent from previous link")
     context = {
         'tires': tires,
         'tire_patterns': tire_patterns,
