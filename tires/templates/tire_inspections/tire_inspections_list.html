@@ -8,6 +8,10 @@
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
         + Add Tire Inspection
     </button>
+    
+    <a class="btn btn-primary" href="{% url 'tire_assignment_list' %}?create=true&work_order={{work_order}}">
+       -> Go to Assignments
+    </a>
 {% endblock %}
 
 {% block content %}
@@ -183,23 +187,30 @@
     <div class="modal fade" id="createModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
+                
                 <form method="post" action="{% url 'tire_inspections_create' %}">
                     {% csrf_token %}
                     <div class="modal-header">
                         <h5 class="modal-title">Add New Tire Inspection</h5>
+                        
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label">Tire</label> 
-                                    <select name="tire" class="form-select" required>
-                                        <option value="">Select a tire</option>
-                                        {% for tire in tires %}
-                                            <option value="{{ tire.id }}">{{ tire.serial_number }} - {{ tire.pattern.brand_name }}</option>
-                                        {% endfor %}
-                                    </select>
+                                    <label class="form-label">Tire</label>
+                                    <div class="input-group">
+                                        <select name="tire" id="tireToSelect" class="form-select" required onchange="updateTireDetails()">
+                                            <option value="">Select a Tire</option>
+                                            {% for tire in tires %}
+                                                <option value="{{ tire.id }}" data-tire-id="{{ tire.id }}">{{ tire.serial_number }} - {{ tire.pattern.brand_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="button" class="btn btn-outline-info" onclick="showTireDetails()" id="tireDetailsBtn" disabled>
+                                            👁️ Details
+                                        </button>
+                                    </div>
                                 </div>
                                 
                                 <div class="mb-3">
@@ -215,16 +226,20 @@
                                 <div class="mb-3">
                                     <label class="form-label">Inspector</label>
                                     <select name="inspector" class="form-select" required>
-                                        <option value="">Select inspector</option>
-                                        {% for employee in employees %}
-                                            <option value="{{ employee.id }}">{{ employee.first_name }} {{employee.last_name}}</option>
-                                        {% endfor %}
+                                        {% if employee_filter %}
+                                            <option value="{{ employee_filter.id }}">{{ employee_filter.first_name }} {{ employee_filter.last_name }}</option>
+                                        {% else %}
+                                            <option value="">Select inspector</option>
+                                            {% for employee in employees %}
+                                                <option value="{{ employee.id }}">{{ employee.first_name }} {{ employee.last_name }}</option>
+                                            {% endfor %}
+                                        {% endif %}
                                     </select>
                                 </div>
                                 
                                 <div class="mb-3">
                                     <label class="form-label">Inspection Odometer</label>
-                                    <input type="number" name="inspection_odometer" class="form-control" required>
+                                    <input type="number" name="inspection_odometer" class="form-control" value="{{ inspection_odometer }}" required >
                                 </div>
                             </div>
                             
@@ -248,6 +263,7 @@
                                         {% endfor %}
                                     </select>
                                 </div>
+                                    <input type="hidden" name="work_order_id" id="workOrderIdInput" value="{{ work_order }}">
 
                             </div>
                         </div>
@@ -426,27 +442,129 @@
 
 {% block extra_js %}
 <script>
-    function tableSearch() {
-        let input = document.getElementById("searchInput");
-        let filter = input.value.toUpperCase();
-        let table = document.getElementsByClassName("table")[0];
-        let tr = table.getElementsByTagName("tr");
 
-        for (let i = 0; i < tr.length; i++) {
-            let td = tr[i].getElementsByTagName("td")[0];
-            if (td) {
-                let txtValue = td.textContent || td.innerText;
-                if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                    tr[i].style.display = "";
-                } else {
-                    tr[i].style.display = "none";
-                }
+   const tireData = {
+    {% for tire in tires %}
+        "{{ tire.id }}": {
+            serialNumber: "{{ tire.serial_number }}",
+            purchaseCost: "{{ tire.purchase_cost }}",
+            pattern: "{{ tire.pattern.brand_name }} - {{ tire.pattern.pattern_code }}",  // Fixed pattern display
+            supplier: "{{ tire.supplier.supplier_name }}",  // Assuming supplier has a name field
+            status: "{{ tire.status }}",
+            purchaseDate: "{{ tire.purchase_date|date:'Y-m-d' }}",  // Fixed date format
+            notes: "{{ tire.notes|default:''|escapejs }}"  // Added escapejs and default
+        }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+};
+
+function updateTireDetails() {
+    const select = document.getElementById('tireToSelect');
+    const button = document.getElementById('tireDetailsBtn');
+    button.disabled = !select.value;
+}
+
+function showTireDetails() {
+    const select = document.getElementById('tireToSelect');
+    const tireId = select.value;
+    
+    if (tireId && tireData[tireId]) {
+        const tire = tireData[tireId];
+        
+        // Create modal content dynamically
+        const modalContent = `
+            <div class="modal fade" id="tireDetailsModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Tire Details</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p><strong>Serial Number:</strong> ${tire.serialNumber}</p>
+                            <p><strong>Purchase Cost:</strong> $${tire.purchaseCost}</p>
+                            <p><strong>Pattern:</strong> ${tire.pattern}</p>
+                            <p><strong>Supplier:</strong> ${tire.supplier}</p>
+                            <p><strong>Status:</strong> ${tire.status}</p>
+                            <p><strong>Purchase Date:</strong> ${tire.purchaseDate}</p>
+                            <p><strong>Notes:</strong> ${tire.notes || 'No notes'}</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing modal if any
+        const existingModal = document.getElementById('tireDetailsModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Add modal to DOM
+        document.body.insertAdjacentHTML('beforeend', modalContent);
+        
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById('tireDetailsModal'));
+        modal.show();
+    } else {
+        alert('Please select a tire first');
+    }
+}
+
+function tableSearch() {
+    let input = document.getElementById("searchInput");
+    let filter = input.value.toUpperCase();
+    let table = document.getElementsByClassName("table")[0];
+    let tr = table.getElementsByTagName("tr");
+
+    for (let i = 0; i < tr.length; i++) {
+        let td = tr[i].getElementsByTagName("td")[0];
+        if (td) {
+            let txtValue = td.textContent || td.innerText;
+            if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                tr[i].style.display = "";
+            } else {
+                tr[i].style.display = "none";
             }
         }
     }
+}
 
-    function confirmDelete(message) {
-        return confirm(message || 'Are you sure you want to delete this record?');
+const tirePositionMap = {{ tire_position_map|safe }};
+
+function updateTireDetails() {
+    const select = document.getElementById('tireToSelect');
+    const button = document.getElementById('tireDetailsBtn');
+    button.disabled = !select.value;
+    
+    // Auto-select position when tire is selected
+    if (select.value) {
+        const positionId = tirePositionMap[select.value];
+        const positionSelect = document.querySelector('select[name="position"]');
+        
+        if (positionId && positionSelect) {
+            positionSelect.value = positionId;
+        }
     }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if URL has ?create=true parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('create') === 'true') {
+        // Auto-open the create modal
+        const createModal = new bootstrap.Modal(document.getElementById('createModal'));
+        createModal.show();
+    }
+    
+    // Initialize button states
+    updateTireDetails();
+});
+
+function confirmDelete(message) {
+    return confirm(message || 'Are you sure you want to delete this record?');
+}
 </script>
 {% endblock %}

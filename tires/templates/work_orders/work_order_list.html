@@ -31,7 +31,7 @@
                     <th>Assigned To</th>
                     <th>Date Created</th>
                     <th>Vehicle</th>
-                    <th>Current Mileage</th>
+                    <th>Current Odometer</th>
                     <th>Shift Type</th>
                     <th>Status</th>
                     <th>Cost</th>
@@ -45,7 +45,7 @@
                         <td>{{ work_order.assigned_to }}</td>
                         <td>{{ work_order.date_created|date:"F j, Y"  }}</td>
                         <td>{{ work_order.vehicle }}</td>
-                        <td>{{ work_order.current_mileage }}</td>
+                        <td>{{ work_order.current_odometer }}</td>
                         <td>{{ work_order.shift_type }}</td>
                         <td>{{ work_order.status }}</td>
                         <td>{{ work_order.cost }}</td>
@@ -115,7 +115,7 @@
 
                                 <div class="mb-3">
                                     <label class="form-label">Date Created</label>
-                                    <input type="date" name="date_created" class="form-control" required>
+                                    <input type="date" id="DateField" name="date_created" class="form-control" required>
                                 </div>
 
                                 <div class="mb-3">
@@ -136,20 +136,18 @@
                             
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label">Current Mileage</label>
-                                    <input type="number" name="current_mileage" class="form-control" required>
+                                    <label class="form-label">Current Odometer</label>
+                                    <input type="number" name="current_odometer" class="form-control" required>
                                 </div>
 
                                 <div class="mb-3">
-                                    <label class="form-label">Shift Type</label>
-                                    <select name="shift_type" class="form-select" required>
-                                        <option value="">Select Type</option>
-                                        <option value="INSTALLATION">Installation</option>
-                                        <option value="REMOVAL">Removal</option>
-                                        <option value="ROTATION">Rotation</option>
-                                        <option value="REPAIR">Repair</option>
-                                    </select>
-                                </div>
+                                <label>Shift Type</label>
+                                <select name="shift_type" class="form-select" required>
+                                    <option value="INSPECTION" {% if work_order.shift_type == "INSPECTION" %}selected{% endif %}>Inspection</option>
+                                    <option value="ASSIGNMENT" {% if work_order.shift_type == "ASSIGNMENT" %}selected{% endif %}>Assignment</option>
+                                    
+                                </select>
+                            </div>
 
                                 <div class="mb-3">
                                 <label>Status</label>
@@ -254,17 +252,16 @@
                             </div>
 
                             <div class="mb-3">
-                                <label>Current Mileage</label>
-                                <input type="text" name="current_mileage" class="form-control" value="{{ work_order.current_mileage }}" required>
+                                <label>Current Odometer</label>
+                                <input type="text" name="current_odometer" class="form-control" value="{{ work_order.current_odometer }}" required>
                             </div>
 
                             <div class="mb-3">
                                 <label>Shift Type</label>
                                 <select name="shift_type" class="form-select" required>
-                                    <option value="INSTALLATION" {% if work_order.shift_type == "INSTALLATION" %}selected{% endif %}>Installation</option>
-                                    <option value="REMOVAL" {% if work_order.shift_type == "REMOVAL" %}selected{% endif %}>Removal</option>
-                                    <option value="ROTATION" {% if work_order.shift_type == "ROTATION" %}selected{% endif %}>Rotation</option>
-                                    <option value="REPAIR" {% if work_order.shift_type == "REPAIR" %}selected{% endif %}>Repair</option>
+                                    <option value="INSPECTION" {% if work_order.shift_type == "INSPECTION" %}selected{% endif %}>Installation</option>
+                                    <option value="ASSIGNMENT" {% if work_order.shift_type == "ASSIGNMENT" %}selected{% endif %}>Removal</option>
+                                    
                                 </select>
                             </div>
 
@@ -309,7 +306,7 @@
                                 <p><strong>Vehicle:</strong> {{ work_order.vehicle }}</p>
                             </div>
                             <div class="col-md-6">
-                                <p><strong>Current Mileage:</strong> {{ work_order.current_mileage }}</p>
+                                <p><strong>Current Odometer:</strong> {{ work_order.current_odometer }}</p>
                                 <p><strong>Shift Type:</strong> {{ work_order.shift_type }}</p>
                                 <p><strong>Status:</strong> {{ work_order.status }}</p>
                                 <p><strong>Cost:</strong> {{ work_order.cost }}</p>
@@ -446,5 +443,8 @@
         updateEmployeeDetails();
         updateVehicleDetails();
     });
+
+    document.getElementById('DateField').valueAsDate = new Date();
+
 </script>
 {% endblock %}

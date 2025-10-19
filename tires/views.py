@@ -190,7 +190,7 @@ def work_order_create(request):
         date_created = request.POST.get('date_created')
         assigned_to_id = request.POST.get('assigned_to')
         vehicle_id = request.POST.get('vehicle')
-        current_mileage = request.POST.get('current_mileage')
+        current_odometer = request.POST.get('current_odometer')
         shift_type = request.POST.get('shift_type')
         status = request.POST.get('status')
         cost = request.POST.get('cost')
@@ -210,7 +210,7 @@ def work_order_create(request):
             work_order_number=work_order_number,
             assigned_to=assigned_to,
             vehicle=vehicle,
-            current_mileage=current_mileage,
+            current_odometer=current_odometer,
             shift_type=shift_type,
             status=status,
             cost=cost
@@ -218,7 +218,13 @@ def work_order_create(request):
         
         messages.success(request, 'Work Order created successfully!')
     
-    return redirect('tires_list')
+        
+        # Simple redirect with query parameters
+        # return redirect(f'/tire-inspections/?vehicle_filter={vehicle_id}&create=true')
+        return redirect(f'/tire-inspections/?work_order={work_order.id}&create=true')
+
+        # "{% url 'work_order_list' %}?create=true"
+    return redirect('work_order_list')
 
 def work_order_update(request, id):
 
@@ -251,7 +257,7 @@ def work_order_update(request, id):
         work_order.save()
         
         messages.success(request, 'Work Order updated successfully!')
-    
+    return redirect(f'/tire-inspections/?vehicle_filter={vehicle_id}&create=true') #temp
     return redirect('work_order_list')
 
 
@@ -473,18 +479,36 @@ def employee_update(request, id):
 def tire_position_list(request):
     tire_positions = TirePosition.objects.all()
     vehicles = Vehicle.objects.all()
+    tires = Tire.objects.all()
     
     # Get filter parameter from request
     vehicle_filter = request.GET.get('vehicle_filter', '')
     
-    # Apply filter
+    # Apply filter to tire positions
     if vehicle_filter:
         tire_positions = tire_positions.filter(vehicle_id=vehicle_filter)
     
+    # Get tires for the selected vehicle (for the dropdown)
+    vehicle_filter = request.GET.get('vehicle_filter', '')
+    if vehicle_filter:
+        # Get all tire positions for this vehicle
+        vehicle_positions = TirePosition.objects.filter(vehicle_id=vehicle_filter)
+        
+        # Get tires that are currently mounted on these positions
+        mounted_tire_ids = vehicle_positions.exclude(
+            mounted_tire__isnull=True
+        ).values_list('mounted_tire_id', flat=True)
+        
+        # Filter tires to show only those mounted on this vehicle
+        tires = Tire.objects.filter(id__in=mounted_tire_ids)
+    
+    # print("This is the vehicle Filter: " + vehicle_filter)
+
     context = {
         'tire_positions': tire_positions,
         'vehicles': vehicles,
         'vehicle_filter': vehicle_filter,
+        'tires': tires,
     }
     return render(request, 'tire_positions/tire_position_list.html', context)
 
@@ -505,10 +529,11 @@ def tire_position_create(request):
         axle_number = request.POST.get('axle_number')
         wheel_number = request.POST.get('wheel_number')
         is_spare = request.POST.get('is_spare') == 'on'
-
+        mounted_tire = request.POST.get('mounted_tire')
         
+        tire = Tire.objects.get(id = mounted_tire)
         # Validations
-
+        print("Tire: " + tire.serial_number)
       
         
         # Create the tire_position
@@ -518,6 +543,7 @@ def tire_position_create(request):
             axle_number=axle_number,
             wheel_number=wheel_number,
             is_spare=is_spare,
+            mounted_tire=tire
         )
         
         messages.success(request, 'tire_position created successfully!')
@@ -530,8 +556,9 @@ def tire_position_update(request, id):
     if request.method == 'POST':
         # Get the vehicle ID and find the actual Vehicle object
         vehicle_id = request.POST.get('vehicle')
+        mounted_tire_id =request.POST.get('mounted_tire')
         vehicle = Vehicle.objects.get(id=vehicle_id)
-        
+        tire = Tire.objects.get(id = mounted_tire_id)
         # Convert checkbox value to boolean
         is_spare = request.POST.get('is_spare') == 'on'
         
@@ -541,7 +568,7 @@ def tire_position_update(request, id):
         tire_position.axle_number = request.POST.get('axle_number')
         tire_position.wheel_number = request.POST.get('wheel_number')
         tire_position.is_spare = is_spare
-        
+        tire_position.mounted_tire = tire
         tire_position.save()
         
         messages.success(request, 'Tire position updated successfully!')
@@ -672,7 +699,28 @@ def tire_inspections_list(request):
     axle_type_filter = request.GET.get('axle_type_filter', '')
     inspector_filter = request.GET.get('inspector_filter', '')
     wear_filter = request.GET.get('wear_filter', '')
+    work_order_id = request.GET.get('work_order', '')
+    inspection_odometer_autofill = WorkOrder.objects.get(id = work_order_id).current_odometer
+
+    # Initialize variables with default values
+    vehicle_filter = None
+    employee_filter = None
     
+    # Only try to get work order if work_order_id exists and is not empty
+    if work_order_id:  # This will be False for empty string, None, etc.
+        try:
+            work_order = WorkOrder.objects.get(id=work_order_id)
+            vehicle_filter = work_order.vehicle.id
+            employee_filter = work_order.assigned_to  # Get the employee object directly
+        except WorkOrder.DoesNotExist:
+            # Handle case where work order doesn't exist
+            pass
+        except ValueError:
+            # Handle case where work_order_id is not a valid number
+            pass
+    
+    
+
     # Apply filters only if they exist
     if tire_filter:
         tire_inspections = tire_inspections.filter(tire_id=tire_filter)
@@ -682,17 +730,57 @@ def tire_inspections_list(request):
         tire_inspections = tire_inspections.filter(inspector_id=inspector_filter)
     if wear_filter:
         tire_inspections = tire_inspections.filter(wear_id=wear_filter)  
+    if vehicle_filter:
+        # Get all tire positions for this vehicle
+        vehicle_positions = TirePosition.objects.filter(vehicle_id=vehicle_filter)
+        
+        # Get tires that are currently mounted on these positions
+        mounted_tire_ids = vehicle_positions.exclude(
+            mounted_tire__isnull=True
+        ).values_list('mounted_tire_id', flat=True)
+        
+        # Filter tires to show only those mounted on this vehicle
+        tires = Tire.objects.filter(id__in=mounted_tire_ids)
+    else:
+        # If no vehicle filter, use all tire positions
+        vehicle_positions = TirePosition.objects.all()
     
+    if vehicle_filter:
+        # Get all tire positions for this vehicle
+        vehicle_positions = TirePosition.objects.filter(vehicle_id=vehicle_filter)
+        
+        # Get tires that are currently mounted on these positions
+        mounted_tire_ids = vehicle_positions.exclude(
+            mounted_tire__isnull=True
+        ).values_list('mounted_tire_id', flat=True)
+        
+        # Filter tires to show only those mounted on this vehicle
+        tires = Tire.objects.filter(id__in=mounted_tire_ids)
+        
+        # Create a dictionary mapping tire IDs to their positions
+        tire_position_map = {}
+        for position in vehicle_positions:
+            if position.mounted_tire:
+                tire_position_map[str(position.mounted_tire.id)] = position.id
+    else:
+        vehicle_positions = TirePosition.objects.all()
+        tire_position_map = {}
+
     context = {
         'tire_inspections': tire_inspections,
         'tires': tires,
-        'tire_positions': tire_positions,
+        'tire_positions': vehicle_positions,
         'employees': employees,
         'wear_types': wear_types,
         'tire_filter': tire_filter,
         'axle_type_filter': axle_type_filter, 
         'inspector_filter': inspector_filter,
-        'wear_filter': wear_filter,  
+        'wear_filter': wear_filter,
+        'vehicle_filter': vehicle_filter,  
+        'work_order': work_order_id,
+        'employee_filter': employee_filter,  # This will be None if no work order
+        'tire_position_map': tire_position_map, 
+        'inspection_odometer':inspection_odometer_autofill,
     }
     return render(request, 'tire_inspections/tire_inspections_list.html', context)
 
@@ -713,7 +801,6 @@ def tire_inspections_create(request):
         tread_depth = request.POST.get('tread_depth')
         CTP = float(request.POST.get('pressure'))  # Convert to float
         wear_id = request.POST.get('wear_id')
-
         tire = Tire.objects.get(id=tire_id)
         position = TirePosition.objects.get(id=position_id)
         inspector = Employee.objects.get(id=inspector_id)
@@ -840,8 +927,12 @@ def tire_inspections_create(request):
         )
         
         messages.success(request, 'Tire inspection created successfully!')
-        return redirect('tire_inspections_list')
-    
+        # return redirect('tire_inspections_list')
+        work_order_id = request.POST.get('work_order_id')
+        
+        # Always redirect back with the vehicle filter and create flag
+        if work_order_id:
+            return redirect(f'/tire-inspections/?work_order={work_order_id}&create=true')
     return redirect('tire_inspections_list')
 
 
@@ -951,7 +1042,7 @@ def tires_list(request):
     pattern_filter = request.GET.get('pattern_filter', '')
     status_filter = request.GET.get('status_filter', '')
     supplier_filter = request.GET.get('supplier_filter', '')
-    vehicle_filter = request.GET.get('supplier_filter', '')
+       
 
     # Apply filters only if they exist
     if pattern_filter:
@@ -963,8 +1054,6 @@ def tires_list(request):
     if supplier_filter:
         tires = tires.filter(supplier_id=supplier_filter)  # Keep as supplier_id
     
-    if vehicle_filter:
-        position = TirePosition.objects.get(vehicle="the one sent from previous link")
     context = {
         'tires': tires,
         'tire_patterns': tire_patterns,
@@ -996,6 +1085,7 @@ def tires_create(request):
             supplier_id = request.POST.get('supplier')
             initial_tread_depth = request.POST.get('initial_tread_depth')
             notes = request.POST.get('notes')
+        
 
             pattern = TirePattern.objects.get(id=pattern_id)
             status = TireStatus.objects.get(id=status_id)
@@ -1154,15 +1244,47 @@ def tire_assignment_list(request):
     tire_assignments = TireAssignment.objects.all()
     tires = Tire.objects.all()
     tire_positions = TirePosition.objects.all()
-    work_orders = WorkOrder.objects.all()
     tire_inspections = TireInspection.objects.all()
-
+    
+    # Handle work order
+    work_order_id = request.GET.get('work_order', '')
+    work_order = None
+    if work_order_id:
+        try:
+            work_order = WorkOrder.objects.get(id=work_order_id)
+        except WorkOrder.DoesNotExist:
+            work_order = None
+    
+    # Initialize filtered querysets
+    filtered_tires = Tire.objects.none()
+    filtered_positions = TirePosition.objects.none()
+    filtered_inspections = TireInspection.objects.none()
+    
+    if work_order:
+        # Get the vehicle from work order
+        vehicle = work_order.vehicle
+        
+        # 1. Filter tires: Tires currently mounted on this vehicle
+        mounted_tire_ids = TirePosition.objects.filter(
+            vehicle=vehicle, 
+            mounted_tire__isnull=False
+        ).values_list('mounted_tire_id', flat=True)
+        filtered_tires = Tire.objects.filter(id__in=mounted_tire_ids)
+        
+        # 2. Filter positions: All positions for this vehicle
+        filtered_positions = TirePosition.objects.filter(vehicle=vehicle)
+        
+        # 3. Filter inspections: Inspections for this vehicle's tires
+        filtered_inspections = TireInspection.objects.filter(
+            tire__in=filtered_tires
+        ).order_by('-inspection_odometer')
+    
     context = {
         'tire_assignments': tire_assignments,
-        'tires': tires,
-        'tire_positions': tire_positions,
-        'work_orders': work_orders,
-        'tire_inspections': tire_inspections,
+        'tires': filtered_tires,
+        'tire_positions': filtered_positions,
+        'work_order': work_order,
+        'tire_inspections': filtered_inspections,
     }
     return render(request, 'tire_assignments/tire_assignment_list.html', context)
 
@@ -1183,13 +1305,7 @@ def tire_assignment_create(request):
         tire_inspection_id = request.POST.get('tire_inspection')
         assignment_date = request.POST.get('assignment_date')
         removal_date = request.POST.get('removal_date')
-        start_odometer = request.POST.get('start_odometer')
-        end_odometer = request.POST.get('end_odometer')
-        removal_mileage = request.POST.get('removal_mileage')
         reason_for_removal = request.POST.get('reason_for_removal')
-
-        tire_inspection = TireInspection.objects.get(id=tire_inspection_id)
-
 
         tire = get_object_or_404(Tire, id=tire_id)
         tire_position_from = get_object_or_404(TirePosition, id=tire_position_from_id)
@@ -1197,7 +1313,6 @@ def tire_assignment_create(request):
         work_order = get_object_or_404(WorkOrder, id=work_order_id)
         tire_inspection = get_object_or_404(TireInspection, id=tire_inspection_id)
         
-
         # Create the tire assignment
         tire_assignment = TireAssignment.objects.create(
             tire=tire,
@@ -1205,11 +1320,8 @@ def tire_assignment_create(request):
             tire_position_to=tire_position_to,
             assignment_date=assignment_date,
             removal_date=removal_date,
-            start_odometer=start_odometer,
-            end_odometer=end_odometer,
             work_order=work_order,
-            tire_inspection=tire_inspection,
-            removal_mileage=removal_mileage,
+            inspection=tire_inspection,
             reason_for_removal=reason_for_removal,
         )
         
@@ -1219,7 +1331,6 @@ def tire_assignment_create(request):
 def tire_assignment_update(request, id):
     tire_assignment = get_object_or_404(TireAssignment, id=id)
     if request.method == 'POST':
-
         # Get data from the form
         tire_id = request.POST.get('tire')
         tire_position_from_id = request.POST.get('tire_position_from')
@@ -1228,9 +1339,6 @@ def tire_assignment_update(request, id):
         tire_inspection_id = request.POST.get('tire_inspection')
         assignment_date = request.POST.get('assignment_date')
         removal_date = request.POST.get('removal_date')
-        start_odometer = request.POST.get('start_odometer')
-        end_odometer = request.POST.get('end_odometer')
-        removal_mileage = request.POST.get('removal_mileage')
         reason_for_removal = request.POST.get('reason_for_removal')
 
         tire = Tire.objects.get(id=tire_id)
@@ -1245,11 +1353,8 @@ def tire_assignment_update(request, id):
         tire_assignment.tire_position_to = tire_position_to
         tire_assignment.assignment_date = assignment_date
         tire_assignment.removal_date = removal_date
-        tire_assignment.start_odometer = start_odometer
-        tire_assignment.end_odometer = end_odometer
         tire_assignment.work_order = work_order
-        tire_assignment.tire_inspection = tire_inspection
-        tire_assignment.removal_mileage = removal_mileage
+        tire_assignment.inspection = tire_inspection
         tire_assignment.reason_for_removal = reason_for_removal
         tire_assignment.save()
 
