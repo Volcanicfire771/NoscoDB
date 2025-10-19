@@ -42,7 +42,7 @@
                         <td>{{ tire_assignment.tire_position_from }}</td>
                         <td>{{ tire_assignment.tire_position_to }}</td>
                         <td>{{ tire_assignment.work_order }}</td>
-                       <td>{{ tire_assignment.tire_inspection }}</td>
+                       <td>{{ tire_assignment.inspection.id }}</td>
                         <td style="text-align:center;">
                            <!-- Edit Button -->
                             <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal-{{ tire_assignment.id }}">
@@ -75,204 +75,192 @@
     </div>
 
     <!-- Create Tire Assignment Modal -->
-    <div class="modal fade" id="createModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form method="post" action="{% url 'tire_assignment_create' %}">
-                    {% csrf_token %}
-                    <div class="modal-header">
-                        <h5 class="modal-title">Add New Tire Assignment</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<!-- Create Tire Assignment Modal -->
+<!-- Create Tire Assignment Modal -->
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'tire_assignment_create' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Tire Assignment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Tire #</label>
+                        <select name="tire" class="form-select" required id="tireSelect" onchange="updateTireDetails()">
+                            <option value="">Select a tire</option>
+                            {% for tire in tires %}
+                                <option value="{{ tire.id }}" data-current-position="{{ tire.mounted_positions.first.id }}">
+                                    {{ tire.serial_number }} - {{ tire.pattern.brand_name }}
+                                    {% if tire.mounted_positions.first %}
+                                        (Currently on: {{ tire.mounted_positions.first.position_name }})
+                                    {% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
                     </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label">Tire #</label>
-                            <select name="tire" class="form-select" required>
-                                <option value="">Select a tire</option>
-                                {% for tire in tires %}
-                                    <option value="{{ tire.id }}">{{ tire.serial_number }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label">From Position</label> <!--foreign key-->
-                            <select name="tire_position_from" class="form-select" required>
-                                <option value="">Select a position</option>
-                                {% for tire_position in tire_positions %}
-                                    <option value="{{ tire_position.id }}">{{ tire_position }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">To Position</label> <!--foreign key-->
-                            <select name="tire_position_to" class="form-select" required>
-                                <option value="">Select a position</option>
-                                {% for tire_position in tire_positions %}
-                                    <option value="{{ tire_position.id }}">{{ tire_position }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Assignment Date</label>
-                            <input type="text" name="assignment_date" class="form-control" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Removal Date</label>
-                            <input type="text" name="removal_date" class="form-control" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Start Odometer</label>
-                            <input type="text" name="start_odometer" class="form-control" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">End Odometer</label>
-                            <input type="text" name="end_odometer" class="form-control" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Removal Mileage</label>
-                            <input type="text" name="removal_mileage" class="form-control" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Reason for Removal</label>
-                            <input type="text" name="reason_for_removal" class="form-control" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Work Order</label> <!--foreign key-->
-                            <select name="work_order" class="form-select" required>
-                                <option value="">Select a work order</option>
-                                {% for work_order in work_orders %}
-                                    <option value="{{ work_order.id }}">{{ work_order.work_order_number }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                      -  <div class="mb-3">
-                            <label class="form-label">Tire Inspection</label> 
-                            <select name="tire_inspection" class="form-select" required>
-                                <option value="">Select the Tire Inspection</option>
-                                {% for tire_inspection in tire_inspections %}
-                                    <option value="{{ tire_inspection.id }}">{{ tire_inspection.id }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">From Position</label>
+                        <select name="tire_position_from" class="form-select" required id="fromPositionSelect">
+                            <option value="">Select current position</option>
+                            {% for tire_position in tire_positions %}
+                                <option value="{{ tire_position.id }}">
+                                    {{ tire_position.position_name }} ({{ tire_position.get_axle_type_display }})
+                                </option>
+                            {% endfor %}
+                        </select>
                     </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-success">Create Tire Assignment</button>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+
+                    <div class="mb-3">
+                        <label class="form-label">To Position</label>
+                        <select name="tire_position_to" class="form-select" required id="toPositionSelect">
+                            <option value="">Select new position</option>
+                            {% for tire_position in tire_positions %}
+                                <option value="{{ tire_position.id }}">
+                                    {{ tire_position.position_name }} ({{ tire_position.get_axle_type_display }})
+                                </option>
+                            {% endfor %}
+                        </select>
                     </div>
-                </form>
-            </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Assignment Date</label>
+                        <input type="date" name="assignment_date" class="form-control auto-date" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Removal Date</label>
+                        <input type="date" name="removal_date" class="form-control auto-date">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Reason for Removal</label>
+                        <input type="text" name="reason_for_removal" class="form-control">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Work Order</label>
+                        <select name="work_order" class="form-select" required>
+                            {% if work_order %}
+                                <option value="{{ work_order.id }}" selected>
+                                    {{ work_order.work_order_number }} - {{ work_order.vehicle.license_plate }}
+                                </option>
+                            {% else %}
+                                <option value="">No work order available</option>
+                            {% endif %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Tire Inspection</label> 
+                        <select name="tire_inspection" class="form-select" required id="inspectionSelect">
+                            <option value="">Select the Tire Inspection</option>
+                            {% for tire_inspection in tire_inspections %}
+                                <option value="{{ tire_inspection.id }}">
+                                    Inspection #{{ tire_inspection.id }} - {{ tire_inspection.tire.serial_number }} 
+                                    ({{ tire_inspection.inspection_odometer }} km)
+                                </option>
+                            {% empty %}
+                                <option value="">No inspections available for this vehicle</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success">Create Tire Assignment</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </form>
         </div>
     </div>
+</div>
 
     <!-- Edit and Details Modals for each tire assignment -->
     {% for tire_assignment in tire_assignments %}
         <!-- Edit Modal -->
-        <div class="modal fade" id="editModal-{{ tire_assignment.id }}">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <form method="post" action="{% url 'tire_assignment_update' tire_assignment.id %}">
-                        {% csrf_token %}
-                        <div class="modal-header">
-                            <h5 class="modal-title">Update Tire Assignment</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="mb-3">
-                                <label class="form-label">Tire #</label>
-                                <select name="tire" class="form-select" required>
-                                    <option value="">Select a tire</option>
-                                    {% for tire in tires %}
-                                        <option value="{{ tire.id }}" {% if tire_assignment.tire.id == tire.id %}selected{% endif %}>{{ tire.serial_number }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">From Position</label>
-                                <select name="tire_position_from" class="form-select" required>
-                                    <option value="">Select a position</option>
-                                    {% for tire_position in tire_positions %}
-                                        <option value="{{ tire_position.id }}" {% if tire_assignment.tire_position_from.id == tire_position.id %}selected{% endif %}>{{ tire_position.id }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">To Position</label>
-                                <select name="tire_position_to" class="form-select" required>
-                                    <option value="">Select a position</option>
-                                    {% for tire_position in tire_positions %}
-                                        <option value="{{ tire_position.id }}" {% if tire_assignment.tire_position_to.id == tire_position.id %}selected{% endif %}>{{ tire_position.id }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Assignment Date</label>
-                                <input type="datetime" name="assignment_date" class="form-control" value="{{ tire_assignment.assignment_date|date:'Y-m-d' }}" required>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label">Removal Date</label>
-                                <input type="datetime" name="removal_date" class="form-control" value="{{ tire_assignment.removal_date|date:'Y-m-d' }}" required>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label">Start Odometer</label>
-                                <input type="text" name="start_odometer" class="form-control" value="{{ tire_assignment.start_odometer }}" required>
-                            </div> 
-
-                            <div class="mb-3">
-                                <label class="form-label">End Odometer</label>
-                                <input type="text" name="end_odometer" class="form-control" value="{{ tire_assignment.end_odometer }}" required>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label">Removal Mileage</label>
-                                <input type="text" name="removal_mileage" class="form-control" value="{{ tire_assignment.removal_mileage }}" required>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label">Reason for Removal</label>
-                                <input type="text" name="reason_for_removal" class="form-control" value="{{ tire_assignment.reason_for_removal }}" required>
-                            </div>
-
-
-                            <div class="mb-3">
-                                <label class="form-label">Work Order</label>
-                                <select name="work_order" class="form-select" required>
-                                    <option value="">Select a work order</option>
-                                    {% for work_order in work_orders %}
-                                        <option value="{{ work_order.id }}" {% if tire_assignment.work_order.id == work_order.id %}selected{% endif %}>{{ work_order.work_order_number }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-
-                         -   <div class="mb-3">
-                                <label class="form-label">Tire Inspection</label>
-                                <select name="tire_inspection" class="form-select" required>
-                                    <option value="">Select a tire inspection</option>
-                                    {% for tire_inspection in tire_inspections %}
-                                        <option value="{{ tire_inspection.id }}" {% if tire_assignment.tire_inspection.id == tire_inspection.id %}selected{% endif %}>{{ tire_inspection.id }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="submit" class="btn btn-primary">Update Tire Assignment</button>
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        </div>
-                    </form>
+<div class="modal fade" id="editModal-{{ tire_assignment.id }}">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'tire_assignment_update' tire_assignment.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Update Tire Assignment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-            </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Tire #</label>
+                        <select name="tire" class="form-select" required>
+                            <option value="">Select a tire</option>
+                            {% for tire in tires %}
+                                <option value="{{ tire.id }}" {% if tire_assignment.tire.id == tire.id %}selected{% endif %}>{{ tire.serial_number }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">From Position</label>
+                        <select name="tire_position_from" class="form-select" required>
+                            <option value="">Select a position</option>
+                            {% for tire_position in tire_positions %}
+                                <option value="{{ tire_position.id }}" {% if tire_assignment.tire_position_from.id == tire_position.id %}selected{% endif %}>{{ tire_position.position_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">To Position</label>
+                        <select name="tire_position_to" class="form-select" required>
+                            <option value="">Select a position</option>
+                            {% for tire_position in tire_positions %}
+                                <option value="{{ tire_position.id }}" {% if tire_assignment.tire_position_to.id == tire_position.id %}selected{% endif %}>{{ tire_position.position_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Assignment Date</label>
+                        <input type="date" name="assignment_date" class="form-control" value="{{ tire_assignment.assignment_date|date:'Y-m-d' }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Removal Date</label>
+                        <input type="date" name="removal_date" class="form-control" value="{{ tire_assignment.removal_date|date:'Y-m-d' }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Reason for Removal</label>
+                        <input type="text" name="reason_for_removal" class="form-control" value="{{ tire_assignment.reason_for_removal }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Work Order</label>
+                        <select name="work_order" class="form-select" required>
+                            <option value="">Select a work order</option>
+                            {% for work_order in work_orders %}
+                                <option value="{{ work_order.id }}" {% if tire_assignment.work_order.id == work_order.id %}selected{% endif %}>{{ work_order.work_order_number }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Tire Inspection</label>
+                        <select name="tire_inspection" class="form-select" required>
+                            <option value="">Select a tire inspection</option>
+                            {% for tire_inspection in tire_inspections %}
+                                <option value="{{ tire_inspection.id }}" {% if tire_assignment.inspection.id == tire_inspection.id %}selected{% endif %}>{{ tire_inspection.id }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Update Tire Assignment</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </form>
         </div>
+    </div>
+</div>
 
         <!-- Details Modal -->
         <div class="modal fade" id="detailsModal-{{ tire_assignment.id }}">
@@ -293,12 +281,9 @@
                                 <p><strong>Removal Date:</strong> {{ tire_assignment.removal_date }}</p>
                             </div>
                             <div class="col-md-6">
-                                <p><strong>Start Odometer:</strong> {{ tire_assignment.start_odometer }}</p>
-                                <p><strong>End Odometer:</strong> {{ tire_assignment.end_odometer }}</p>
-                                <p><strong>Removal Mileage:</strong> {{ tire_assignment.removal_mileage }}</p>
                                 <p><strong>Reason for Removal:</strong> {{ tire_assignment.reason_for_removal }}</p>
                                 <p><strong>Work Order #:</strong> {{ tire_assignment.work_order.work_order_number }}</p>
-                            -    <p><strong>Inspection #:</strong> {{ tire_assignment.tire_inspection.id }}</p>
+                                <p><strong>Inspection #:</strong> {{ tire_assignment.inspection.id }}</p>
                             </div>
                         </div>
                     </div>
@@ -313,23 +298,75 @@
 
 {% block extra_js %}
 <script>
-    function tableSearch() {
-        let input = document.getElementById("searchInput");
-        let filter = input.value.toUpperCase();
-        let table = document.getElementsByClassName("table")[0];
-        let tr = table.getElementsByTagName("tr");
+function tableSearch() {
+    let input = document.getElementById("searchInput");
+    let filter = input.value.toUpperCase();
+    let table = document.getElementsByClassName("table")[0];
+    let tr = table.getElementsByTagName("tr");
 
-        for (let i = 0; i < tr.length; i++) {
-            let td = tr[i].getElementsByTagName("td")[0];
-            if (td) {
-                let txtValue = td.textContent || td.innerText;
-                if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                    tr[i].style.display = "";
-                } else {
-                    tr[i].style.display = "none";
-                }
+    for (let i = 0; i < tr.length; i++) {
+        let td = tr[i].getElementsByTagName("td")[0];
+        if (td) {
+            let txtValue = td.textContent || td.innerText;
+            if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                tr[i].style.display = "";
+            } else {
+                tr[i].style.display = "none";
             }
         }
     }
+}
+
+// Auto-fill dates
+document.querySelectorAll('.auto-date').forEach(field => {
+    field.valueAsDate = new Date();
+});
+
+// Create tire to inspection mapping from Django context
+const tireInspectionMap = {
+    {% for tire_inspection in tire_inspections %}
+        "{{ tire_inspection.tire.id }}": "{{ tire_inspection.id }}"{% if not forloop.last %},{% endif %}
+    {% endfor %}
+};
+
+// Auto-select tire's current position and inspection when tire is selected
+function updateTireDetails() {
+    const tireSelect = document.getElementById('tireSelect');
+    const fromPositionSelect = document.getElementById('fromPositionSelect');
+    const inspectionSelect = document.getElementById('inspectionSelect');
+    const selectedOption = tireSelect.options[tireSelect.selectedIndex];
+    
+    if (selectedOption) {
+        // Auto-select current position
+        if (selectedOption.dataset.currentPosition) {
+            fromPositionSelect.value = selectedOption.dataset.currentPosition;
+        }
+        
+        // Auto-select latest inspection for this tire
+        const tireId = selectedOption.value;
+        if (tireId && tireInspectionMap[tireId]) {
+            inspectionSelect.value = tireInspectionMap[tireId];
+        } else {
+            inspectionSelect.value = '';
+        }
+    }
+}
+
+// Your event listener code here
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if URL has ?create=true parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('create') === 'true') {
+        // Auto-open the create modal
+        const createModal = new bootstrap.Modal(document.getElementById('createModal'));
+        createModal.show();
+    }
+    
+    // Initialize tire position and inspection auto-selection
+    const tireSelect = document.getElementById('tireSelect');
+    if (tireSelect) {
+        tireSelect.addEventListener('change', updateTireDetails);
+    }
+});
 </script>
 {% endblock %}

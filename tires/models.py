@@ -94,9 +94,16 @@ class TirePosition(models.Model):
     wheel_number = models.IntegerField()
     axle_type = models.CharField(max_length=20, choices=AXLE_TYPES, default='DRIVE')  # ADDED DEFAULT
     tire_order = models.IntegerField(default=1)
-    hounded_tire_id = models.CharField(max_length=100, blank=True)
     is_spare = models.BooleanField(default=False)
     
+    mounted_tire = models.ForeignKey(
+        'Tire', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='mounted_positions'
+    )
+
     class Meta:
         unique_together = ['vehicle', 'axle_number', 'wheel_number']
     
@@ -113,6 +120,7 @@ class Tire(models.Model):
     initial_tread_depth = models.DecimalField(max_digits=10, decimal_places=2)
     notes = models.TextField(blank=True)
     
+
     def __str__(self):
         return self.serial_number
 
@@ -202,9 +210,6 @@ class TireAssignment(models.Model):
                                   related_name='assignments_to')
     assignment_date = models.DateField()
     removal_date = models.DateField(null=True, blank=True)
-    start_odometer = models.IntegerField()
-    end_odometer = models.IntegerField(null=True, blank=True)
-    removal_mileage = models.IntegerField(null=True, blank=True)
     reason_for_removal = models.TextField(blank=True)
     work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, 
                                  related_name='tire_assignments')

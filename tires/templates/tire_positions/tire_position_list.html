@@ -12,7 +12,7 @@
 
 {% block content %}
 
-        <!-- Filter Form -->
+    <!-- Filter Form -->
     <form method="get" action="{% url 'tire_position_list' %}" class="mb-4">
         <div class="row g-3 align-items-end">
             <div class="col-md-4">
@@ -49,7 +49,6 @@
     </div>
     {% endif %}
 
-
     <!-- Search Box -->
     <div class="row mb-4">
         <div class="col-md-6">
@@ -71,6 +70,7 @@
                     <th>Position Name</th>
                     <th>Axle Number</th>
                     <th>Wheel Number</th>
+                    <th>Tire</th>
                     <th>Is Spare</th>
                     <th style="text-align:center;">Actions</th>
                 </tr>
@@ -82,6 +82,13 @@
                         <td>{{ tire_position.position_name }}</td>
                         <td>{{ tire_position.axle_number }}</td>
                         <td>{{ tire_position.wheel_number }}</td>
+                        <td>
+                            {% if tire_position.mounted_tire %}
+                                <span class="badge bg-info">{{ tire_position.mounted_tire.serial_number }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">No tire mounted</span>
+                            {% endif %}
+                        </td>
                         <td>
                             <span class="badge {% if tire_position.is_spare %}bg-warning{% else %}bg-secondary{% endif %}">
                                 {% if tire_position.is_spare %}Yes{% else %}No{% endif %}
@@ -109,7 +116,7 @@
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">
+                        <td colspan="7" class="text-center text-muted py-4">
                             No tire positions found. <a href="#" data-bs-toggle="modal" data-bs-target="#createModal">Add the first tire position</a>
                         </td>
                     </tr>
@@ -152,6 +159,16 @@
                         <div class="mb-3">
                             <label class="form-label">Wheel Number</label>
                             <input type="number" name="wheel_number" class="form-control" placeholder="e.g., 1, 2, 3" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Mounted Tire</label>
+                            <select name="mounted_tire" class="form-control">
+                                <option value="">No tire mounted</option>
+                                {% for tire in tires %}
+                                    <option value="{{ tire.id }}">{{ tire.serial_number }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
 
                         <div class="mb-3">
@@ -216,6 +233,19 @@
                             </div>
                             
                             <div class="mb-3">
+                                <label class="form-label">Mounted Tire</label>
+                                <select name="mounted_tire" class="form-control">
+                                    <option value="">No tire mounted</option>
+                                    {% for tire in tires %}
+                                        <option value="{{ tire.id }}" 
+                                            {% if tire_position.mounted_tire.id == tire.id %}selected{% endif %}>
+                                            {{ tire.serial_number }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
                                 <label class="form-label">Is Spare</label>
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="is_spare" id="is_spare_edit_{{ tire_position.id }}"
@@ -249,14 +279,25 @@
                                 <p><strong>Vehicle:</strong> {{ tire_position.vehicle.license_plate }} - {{ tire_position.vehicle.make }}</p>
                                 <p><strong>Position Name:</strong> {{ tire_position.position_name }}</p>
                                 <p><strong>Axle Number:</strong> {{ tire_position.axle_number }}</p>
+                                <p><strong>Wheel Number:</strong> {{ tire_position.wheel_number }}</p>
                             </div>
                             <div class="col-md-6">
-                                <p><strong>Wheel Number:</strong> {{ tire_position.wheel_number }}</p>
+                                <p><strong>Mounted Tire:</strong> 
+                                    {% if tire_position.mounted_tire %}
+                                        <span class="badge bg-info">{{ tire_position.mounted_tire.serial_number }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">No tire mounted</span>
+                                    {% endif %}
+                                </p>
                                 <p><strong>Is Spare:</strong> 
                                     <span class="badge {% if tire_position.is_spare %}bg-warning{% else %}bg-secondary{% endif %}">
                                         {% if tire_position.is_spare %}Yes{% else %}No{% endif %}
                                     </span>
                                 </p>
+                                {% if tire_position.mounted_tire %}
+                                <p><strong>Tire Pattern:</strong> {{ tire_position.mounted_tire.pattern.brand_name }}</p>
+                                <p><strong>Tire Status:</strong> {{ tire_position.mounted_tire.status.status_name }}</p>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
