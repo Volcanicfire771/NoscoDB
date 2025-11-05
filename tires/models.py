@@ -80,6 +80,21 @@ class Vehicle(models.Model):
     def __str__(self):
         return f"{self.license_plate} - {self.make}"
 
+
+class Tire(models.Model):
+    serial_number = models.CharField(max_length=100, unique=True)
+    pattern = models.ForeignKey(TirePattern, on_delete=models.PROTECT)
+    status = models.ForeignKey(TireStatus, on_delete=models.PROTECT)
+    purchase_date = models.DateField()
+    purchase_cost = models.DecimalField(max_digits=10, decimal_places=2)
+    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, null=True, blank=True)
+    initial_tread_depth = models.DecimalField(max_digits=10, decimal_places=2)
+    notes = models.TextField(blank=True)
+    
+
+    def __str__(self):
+        return self.serial_number
+
 class TirePosition(models.Model):
     AXLE_TYPES = [
         ('STEERING', 'Steering Axle'),
@@ -97,7 +112,7 @@ class TirePosition(models.Model):
     is_spare = models.BooleanField(default=False)
     
     mounted_tire = models.ForeignKey(
-        'Tire', 
+        Tire, 
         on_delete=models.SET_NULL, 
         null=True, 
         blank=True,
@@ -110,19 +125,6 @@ class TirePosition(models.Model):
     def __str__(self):
         return f"{self.vehicle.license_plate} - {self.position_name}"
 
-class Tire(models.Model):
-    serial_number = models.CharField(max_length=100, unique=True)
-    pattern = models.ForeignKey(TirePattern, on_delete=models.PROTECT)
-    status = models.ForeignKey(TireStatus, on_delete=models.PROTECT)
-    purchase_date = models.DateField()
-    purchase_cost = models.DecimalField(max_digits=10, decimal_places=2)
-    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, null=True, blank=True)
-    initial_tread_depth = models.DecimalField(max_digits=10, decimal_places=2)
-    notes = models.TextField(blank=True)
-    
-
-    def __str__(self):
-        return self.serial_number
 
 class WorkOrder(models.Model):
     SHIFT_TYPES = [

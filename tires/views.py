@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.db.models import Q
+from django.db import transaction
 # from .models import Vehicle, TireStatus, ServiceType, Supplier, Employee, TirePosition, WorkOrder
 from .models import *
 from decimal import Decimal, InvalidOperation
@@ -531,9 +532,14 @@ def tire_position_create(request):
         is_spare = request.POST.get('is_spare') == 'on'
         mounted_tire = request.POST.get('mounted_tire')
         
-        tire = Tire.objects.get(id = mounted_tire)
-        # Validations
-        print("Tire: " + tire.serial_number)
+        if mounted_tire != '':
+            tire = Tire.objects.get(id = mounted_tire)
+            # Validations
+            print("Tire: " + tire.serial_number)
+        else:
+            tire = None
+        
+        
       
         
         # Create the tire_position
@@ -699,8 +705,14 @@ def tire_inspections_list(request):
     axle_type_filter = request.GET.get('axle_type_filter', '')
     inspector_filter = request.GET.get('inspector_filter', '')
     wear_filter = request.GET.get('wear_filter', '')
-    work_order_id = request.GET.get('work_order', '')
-    inspection_odometer_autofill = WorkOrder.objects.get(id = work_order_id).current_odometer
+    work_order_id = request.GET.get("work_order")
+
+    inspection_odometer_autofill = None
+    if work_order_id and work_order_id.isdigit():
+        try:
+            inspection_odometer_autofill = WorkOrder.objects.get(id=work_order_id).current_odometer
+        except WorkOrder.DoesNotExist:
+            inspection_odometer_autofill = None
 
     # Initialize variables with default values
     vehicle_filter = None
@@ -952,7 +964,7 @@ def tire_inspections_update(request, id):
         position = TirePosition.objects.get(id=position_id)
         inspector = Employee.objects.get(id=inspector_id)
         wear_type = TireWearType.objects.get(id=wear_id)
-        tire_assignment = TireAssignment.objects.get(tire=tire)
+        # tire_assignment = TireAssignment.objects.get(tire=tire)
 
         # Current values from this inspection
         CTD = float(tread_depth)
@@ -961,7 +973,7 @@ def tire_inspections_update(request, id):
         TPP = float(tire.purchase_cost)
         ITD = float(tire.pattern.initial_tread_depth)
         ITP = float(tire.pattern.ideal_tire_pressure)
-        PTM = tire_assignment.end_odometer - tire_assignment.start_odometer
+        # PTM = tire_assignment.end_odometer - tire_assignment.start_odometer
 
         # Find the most recent previous inspection for this tire (excluding current one)
         previous_inspection = TireInspection.objects.filter(
@@ -998,7 +1010,7 @@ def tire_inspections_update(request, id):
         
         CKm = 10 * CRP * Cmm
         FCI = ((ITP - CTP) / 10) * 0.4
-        FLC = FCI * (PTM / 100)
+        #FLC = FCI * (PTM / 100)
 
         # Update all fields including calculated ones
         tire_inspection.tire = tire
@@ -1015,7 +1027,7 @@ def tire_inspections_update(request, id):
         tire_inspection.cost_per_mm_tread_depth = Cmm
         tire_inspection.cost_per_1000_km_travel = CKm
         tire_inspection.fuel_consumption_increase = FCI
-        tire_inspection.fuel_loss_caused = FLC
+        #tire_inspection.fuel_loss_caused = FLC
         tire_inspection.current_tire_value = CTV
         tire_inspection.balance_traveling_distance = BTD
         

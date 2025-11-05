@@ -441,21 +441,21 @@
 {% endblock %}
 
 {% block extra_js %}
+{{ tire_position_map|json_script:"tirePositionMapData" }}
 <script>
 
-   const tireData = {
-    {% for tire in tires %}
-        "{{ tire.id }}": {
-            serialNumber: "{{ tire.serial_number }}",
-            purchaseCost: "{{ tire.purchase_cost }}",
-            pattern: "{{ tire.pattern.brand_name }} - {{ tire.pattern.pattern_code }}",  // Fixed pattern display
-            supplier: "{{ tire.supplier.supplier_name }}",  // Assuming supplier has a name field
-            status: "{{ tire.status }}",
-            purchaseDate: "{{ tire.purchase_date|date:'Y-m-d' }}",  // Fixed date format
-            notes: "{{ tire.notes|default:''|escapejs }}"  // Added escapejs and default
-        }{% if not forloop.last %},{% endif %}
-    {% endfor %}
-};
+   const tireData = {}
+    tires.forEach(tire => {
+      tireData[tire.id] = {
+        serialNumber: tire.serial_number,
+        purchaseCost: tire.purchase_cost,
+        pattern: `${tire.pattern.brand_name} - ${tire.pattern.pattern_code}`,
+        supplier: tire.supplier.supplier_name,
+        status: tire.status,
+        purchaseDate: tire.purchase_date,
+        notes: tire.notes || ""
+      };
+    });
 
 function updateTireDetails() {
     const select = document.getElementById('tireToSelect');
@@ -532,7 +532,10 @@ function tableSearch() {
     }
 }
 
-const tirePositionMap = {{ tire_position_map|safe }};
+
+
+const tirePositionMap = JSON.parse(document.getElementById('tirePositionMapData').textContent);
+
 
 function updateTireDetails() {
     const select = document.getElementById('tireToSelect');
