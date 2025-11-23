@@ -67,6 +67,20 @@
                                     🗑️ Delete
                                 </button>
                             </form>
+
+                            <!-- Bulk Tire Inspection Button -->
+                            <button class="btn btn-sm btn-warning" 
+                                    onclick="openBulkTireModal(
+                                        '{{ work_order.id }}', 
+                                        '{{ work_order.assigned_to.id }}', 
+                                        '{{ work_order.current_odometer }}',
+                                        '{{ work_order.vehicle.id }}',
+                                        '{{ work_order.assigned_to.first_name }} {{ work_order.assigned_to.last_name }}',
+                                        '{{ work_order.vehicle.license_plate }}'
+                                    )">
+                                🛞 Bulk Inspection
+                            </button>
+
                         </td>
                     </tr>
                 {% empty %}
@@ -446,5 +460,19 @@
 
     document.getElementById('DateField').valueAsDate = new Date();
 
+    function openBulkTireModal(workOrderId, inspectorId, odometer, vehicleId, inspectorName, vehicleLicense) {
+    // Store the data in sessionStorage to pass to the tire inspections page
+    sessionStorage.setItem('bulkWorkOrderData', JSON.stringify({
+        work_order_id: workOrderId,
+        inspector_id: inspectorId,
+        odometer: odometer,
+        vehicle_id: vehicleId,
+        inspector_name: inspectorName,
+        vehicle_license: vehicleLicense
+    }));
+    
+    // Navigate to tire inspections page with the parameter to open bulk modal
+    window.location.href = "{% url 'tire_inspections_list' %}?open_bulk_modal=true";
+}
 </script>
 {% endblock %}
