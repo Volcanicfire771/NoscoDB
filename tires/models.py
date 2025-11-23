@@ -118,6 +118,8 @@ class Tire(models.Model):
     purchase_cost = models.DecimalField(max_digits=10, decimal_places=2)
     supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, null=True, blank=True)
     initial_tread_depth = models.DecimalField(max_digits=10, decimal_places=2)
+    last_tread_depth = models.DecimalField(max_digits=5, decimal_places=2, null=True)
+    last_pressure = models.DecimalField(max_digits=5, decimal_places=2, null=True)
     notes = models.TextField(blank=True)
     
 
@@ -147,7 +149,7 @@ class WorkOrder(models.Model):
     current_odometer = models.IntegerField()  # Renamed from current_mileage
     shift_type = models.CharField(max_length=20, choices=SHIFT_TYPES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
-    cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    cost = models.DecimalField(max_digits=10, decimal_places=2, default=0,null=True)
     notes = models.TextField(blank=True)
     
     def __str__(self):
@@ -196,6 +198,19 @@ class TireInspection(models.Model):
     fuel_loss_caused = models.DecimalField(max_digits=6, decimal_places=2, default=0)
     current_tire_value = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     balance_traveling_distance = models.IntegerField(default=0)
+
+    work_order = models.ForeignKey(
+    WorkOrder,
+    on_delete=models.CASCADE,
+    related_name='tire_inspections',
+    null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.tire.last_tread_depth = self.tread_depth
+        self.tire.last_pressure = self.pressure
+        self.tire.save()
+
 
     def __str__(self):
         return f"{self.tire.serial_number}"
