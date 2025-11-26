@@ -8,20 +8,6 @@ class TireStatus(models.Model):
     def __str__(self):
         return self.status_name
 
-class TirePattern(models.Model):
-    pattern_code = models.CharField(max_length=50, unique=True)
-    brand_name = models.CharField(max_length=100)
-    country_of_origin = models.CharField(max_length=50)
-    load_index = models.CharField(max_length=10)
-    speed_symbol = models.CharField(max_length=5)
-    road_type = models.CharField(max_length=50)
-    axle_type = models.CharField(max_length=50, default='DRIVE')  # ADDED DEFAULT
-    initial_tread_depth = models.DecimalField(max_digits=4, decimal_places=2, default=15.00)  # ADDED DEFAULT
-    discarding_tread_depth = models.DecimalField(max_digits=4, decimal_places=2, default=3.00)  # ADDED DEFAULT
-    ideal_tire_pressure = models.DecimalField(max_digits=5, decimal_places=2, default=100.00)  # ADDED DEFAULT
-    
-    def __str__(self):
-        return f"{self.brand_name} - {self.pattern_code}"
 
 class ServiceType(models.Model):
     service_name = models.CharField(max_length=100)
@@ -52,6 +38,21 @@ class Supplier(models.Model):
     
     def __str__(self):
         return self.supplier_name
+
+class TirePattern(models.Model):
+    pattern_code = models.CharField(max_length=50, unique=True)
+    brand_name = models.ForeignKey(Supplier, on_delete=models.PROTECT)
+    country_of_origin = models.CharField(max_length=50)
+    load_index = models.CharField(max_length=10)
+    speed_symbol = models.CharField(max_length=5)
+    road_type = models.CharField(max_length=50)
+    axle_type = models.CharField(max_length=50, default='DRIVE')  # ADDED DEFAULT
+    initial_tread_depth = models.DecimalField(max_digits=4, decimal_places=2, default=15.00)  # ADDED DEFAULT
+    discarding_tread_depth = models.DecimalField(max_digits=4, decimal_places=2, default=3.00)  # ADDED DEFAULT
+    ideal_tire_pressure = models.DecimalField(max_digits=5, decimal_places=2, default=100.00)  # ADDED DEFAULT
+    
+    def __str__(self):
+        return f"{self.brand_name} - {self.pattern_code}"
 
 class Vehicle(models.Model):
     VEHICLE_TYPES = [

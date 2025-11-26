@@ -112,7 +112,6 @@
                     <th>Purchase Date</th>
                     <th>Purchase Cost</th>
                     <th>Supplier</th>
-                    <th>Initial Tread Depth</th>
                     <th style="text-align:center;">Actions</th>
                 </tr>
             </thead>
@@ -127,7 +126,6 @@
                         <td>{{ tire.purchase_date }}</td>
                         <td>${{ tire.purchase_cost }}</td>
                         <td>{{ tire.supplier.supplier_name|default:"-" }}</td>
-                        <td>{{ tire.initial_tread_depth }} mm</td>
                         <td style="text-align:center;">
                             <!-- Edit Button -->
                             <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal-{{ tire.id }}">
