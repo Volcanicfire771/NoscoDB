@@ -1,0 +1,376 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Dashboard - URES Tire System{% endblock %}
+
+{% block page_title %}Tire Management Dashboard{% endblock %}
+
+{% block page_actions %}
+    <div class="btn-group">
+        <button class="btn btn-outline-secondary" onclick="refreshData()">
+            🔄 Refresh
+        </button>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ vehicles_count }}</h4>
+                            <p>Total Vehicles</p>
+                        </div>
+                        <div class="align-self-center">
+                            <span style="font-size: 2rem;">🚗</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ tires_count }}</h4>
+                            <p>Active Tires</p>
+                        </div>
+                        <div class="align-self-center">
+                            <span style="font-size: 2rem;">🛞</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ inspections_count }}</h4>
+                            <p>Inspections Today</p>
+                        </div>
+                        <div class="align-self-center">
+                            <span style="font-size: 2rem;">📊</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ work_orders_count }}</h4>
+                            <p>Active Work Orders</p>
+                        </div>
+                        <div class="align-self-center">
+                            <span style="font-size: 2rem;">📋</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Processes Section -->
+    <div class="row">
+        <!-- Process 1: Tire Inspection Workflow -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-clipboard-check me-2"></i>
+                        Tire Inspection Process
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">Complete the tire inspection workflow to record tire conditions, calculate wear metrics, and generate maintenance recommendations.</p>
+                    
+                    <div class="process-steps mb-4">
+                        <div class="step current">
+                            <span class="step-number">1</span>
+                            <span class="step-text">Create Work Order</span>
+                        </div>
+                        <div class="step">
+                            <span class="step-number">2</span>
+                            <span class="step-text">Tire Inspections</span>
+                        </div>
+                        <div class="step">
+                            <span class="step-number">3</span>
+                            <span class="step-text">Tire Assignments</span>
+                        </div>
+                        <div class="step">
+                            <span class="step-number">4</span>
+                            <span class="step-text">Generate Report</span>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'work_order_list' %}?create=true" class="btn btn-primary btn-lg">
+                            🛞 Start Tire Inspection
+                        </a>
+                        <!-- <a href="{% url 'tire_inspections_create' %}" class="btn btn-outline-primary">
+                            + Quick Inspection
+                        </a> -->
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <small class="text-muted">
+                        Last inspection: {{ last_inspection_date|default:"No inspections yet" }}
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Process 2: Tire Assignment Workflow -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-exchange-alt me-2"></i>
+                        Tire Assignment Process
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">Manage tire assignments, rotations, and replacements across your vehicle fleet with complete tracking and history.</p>
+                    
+                    <div class="process-steps mb-4">
+                        <div class="step completed">
+                            <span class="step-number">1</span>
+                            <span class="step-text">Select Tire & Position</span>
+                        </div>
+                        <div class="step current">
+                            <span class="step-number">2</span>
+                            <span class="step-text">Assign/Remove Tire</span>
+                        </div>
+                        <div class="step">
+                            <span class="step-number">3</span>
+                            <span class="step-text">Update Inventory</span>
+                        </div>
+                        <div class="step">
+                            <span class="step-number">4</span>
+                            <span class="step-text">Generate Work Order</span>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'tire_assignment_list' %}" class="btn btn-success btn-lg">
+                            🔧 Manage Tire Assignments
+                        </a>
+                        <a href="{% url 'tire_assignment_create' %}" class="btn btn-outline-success">
+                            + New Assignment
+                        </a>
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <small class="text-muted">
+                        Active assignments: {{ active_assignments_count }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'work_order_create' %}" class="btn btn-outline-primary w-100">
+                                📋 Create Work Order
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'tires_list' %}" class="btn btn-outline-secondary w-100">
+                                🛞 View Tire Inventory
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'vehicle_list' %}" class="btn btn-outline-info w-100">
+                                🚗 Manage Vehicles
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'maintenance_records_list' %}" class="btn btn-outline-warning w-100">
+                                🔧 Maintenance Records
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Recent Inspections</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_inspections %}
+                        <div class="list-group list-group-flush">
+                            {% for inspection in recent_inspections %}
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ inspection.tire.serial_number }}</h6>
+                                    <small>{{ inspection.created_at|timesince }} ago</small>
+                                </div>
+                                <p class="mb-1">Tread: {{ inspection.tread_depth }}mm | Pressure: {{ inspection.pressure }}PSI</p>
+                                <small class="text-muted">Vehicle: {{ inspection.position.vehicle.license_plate }}</small>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No recent inspections</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Pending Work Orders</h5>
+                </div>
+                <div class="card-body">
+                    {% if pending_work_orders %}
+                        <div class="list-group list-group-flush">
+                            {% for order in pending_work_orders %}
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ order.work_order_number }}</h6>
+                                    <span class="badge bg-warning">{{ order.get_status_display }}</span>
+                                </div>
+                                <p class="mb-1">{{ order.vehicle.license_plate }} - {{ order.get_shift_type_display }}</p>
+                                <small class="text-muted">Assigned to: {{ order.assigned_to.first_name }}</small>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No pending work orders</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.process-steps {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    margin: 20px 0;
+}
+
+.process-steps::before {
+    content: '';
+    position: absolute;
+    top: 15px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #dee2e6;
+    z-index: 1;
+}
+
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+}
+
+.step-number {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #6c757d;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.step.completed .step-number {
+    background: #28a745;
+}
+
+.step.current .step-number {
+    background: #007bff;
+    transform: scale(1.1);
+}
+
+.step-text {
+    font-size: 0.8rem;
+    text-align: center;
+    color: #6c757d;
+}
+
+.step.completed .step-text,
+.step.current .step-text {
+    color: #007bff;
+    font-weight: 500;
+}
+
+.card {
+    transition: transform 0.2s;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.btn-lg {
+    padding: 12px 24px;
+    font-size: 1.1rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function refreshData() {
+    // You can add AJAX refresh functionality here
+    location.reload();
+}
+
+// Add some interactive effects
+document.addEventListener('DOMContentLoaded', function() {
+    // Add click effects to process cards
+    const processCards = document.querySelectorAll('.card');
+    processCards.forEach(card => {
+        card.addEventListener('click', function(e) {
+            if (e.target.tagName === 'A') return; // Don't trigger if clicking links
+            const link = this.querySelector('a.btn-lg');
+            if (link) {
+                link.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    link.style.transform = '';
+                }, 150);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
