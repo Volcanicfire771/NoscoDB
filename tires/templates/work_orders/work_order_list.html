@@ -48,8 +48,13 @@
                         <td>{{ work_order.current_odometer }}</td>
                         <td>{{ work_order.shift_type }}</td>
                         <td>{{ work_order.status }}</td>
-                        <td>{{ work_order.cost }}</td>
-                        <td style="text-align:center;">
+                        {% if work_order.cost != 0 %}
+                            <td>{{ work_order.cost }}</td>
+                        {% endif %}
+                        {% if work_order.cost == 0 %}
+                            <td>Not assigned</td>
+                        {% endif %}
+                        <td style="text-align:left;">
                            <!-- Edit Button -->
                             <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal-{{ work_order.id }}">
                                 ✏️ Edit
@@ -67,20 +72,20 @@
                                     🗑️ Delete
                                 </button>
                             </form>
-
-                            <!-- Bulk Tire Inspection Button -->
-                            <button class="btn btn-sm btn-warning" 
-                                    onclick="openBulkTireModal(
-                                        '{{ work_order.id }}', 
-                                        '{{ work_order.assigned_to.id }}', 
-                                        '{{ work_order.current_odometer }}',
-                                        '{{ work_order.vehicle.id }}',
-                                        '{{ work_order.assigned_to.first_name }} {{ work_order.assigned_to.last_name }}',
-                                        '{{ work_order.vehicle.license_plate }}'
-                                    )">
-                                🛞 Bulk Inspection
-                            </button>
-
+                            {% if work_order.shift_type == "INSPECTION" and work_order.status == "OPENED" %}
+                                <!-- Bulk Tire Inspection Button -->
+                                <button class="btn btn-sm btn-warning" 
+                                        onclick="openBulkTireModal(
+                                            '{{ work_order.id }}', 
+                                            '{{ work_order.assigned_to.id }}', 
+                                            '{{ work_order.current_odometer }}',
+                                            '{{ work_order.vehicle.id }}',
+                                            '{{ work_order.assigned_to.first_name }} {{ work_order.assigned_to.last_name }}',
+                                            '{{ work_order.vehicle.license_plate }}'
+                                        )">
+                                    🛞 Bulk Inspection
+                                </button>
+                            {% endif %}
                         </td>
                     </tr>
                 {% empty %}
@@ -173,10 +178,10 @@
                                 </select>
                             </div>
 
-                                <div class="mb-3">
+                                <!-- <div class="mb-3">
                                     <label class="form-label">Cost</label>
                                     <input type="number" step="0.01" name="cost" class="form-control" required>
-                                </div>
+                                </div> -->
                             </div>
                         </div>
                     </div>
