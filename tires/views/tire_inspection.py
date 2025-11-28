@@ -137,6 +137,22 @@ def bulk_tire_update(request):
         inspector = Employee.objects.get(id=inspector_id) if inspector_id else None
         vehicle = Vehicle.objects.get(id=vehicle_id) if vehicle_id else None
         
+        # -------------------------------
+        # NEW: COST + CLOSE WORK ORDER
+        # -------------------------------
+        cost_value = request.POST.get("cost")
+        close_flag = request.POST.get("close_work_order")
+        print(f"Cost: {cost_value}\t flag: {close_flag}")
+        if work_order:
+            if cost_value:
+                work_order.cost = cost_value
+
+            if close_flag == "on":
+                work_order.status = "CLOSED"
+
+            work_order.save()
+        # -------------------------------
+        
         # Get default wear type
         default_wear_type = TireWearType.objects.first()
         
@@ -148,13 +164,13 @@ def bulk_tire_update(request):
         for position in vehicle_positions:
             if position.mounted_tire:
                 tire = position.mounted_tire
+
                 # Get the updated values from the form
                 new_tread = request.POST.get(f"tire_{tire.id}_new_tread")
                 new_pressure = request.POST.get(f"tire_{tire.id}_new_pressure")
                 
                 # Only create inspection if both values are provided
                 if new_tread and new_pressure:
-                    # Create a new tire inspection record
                     inspection = TireInspection.objects.create(
                         tire=tire,
                         position=position,
@@ -165,10 +181,8 @@ def bulk_tire_update(request):
                         wear_id=default_wear_type,
                         work_order=work_order
                     )
-                    
-                    # Calculate and save the calculated fields
-                    # You'll need to add your calculation logic here
-                    # For now, setting some default values
+
+                    # Default calculation placeholders
                     inspection.consumption_rate = 0
                     inspection.remaining_traveling_distance = 0
                     inspection.cost_per_mm_tread_depth = 0
