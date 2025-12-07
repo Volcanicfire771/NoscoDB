@@ -11,6 +11,7 @@ class Command(BaseCommand):
         TireInspection.objects.all().delete()
         TireAssignment.objects.all().delete()
         WorkOrder.objects.all().delete()
+        MaintenanceRecord.objects.all().delete()
         Tire.objects.all().delete()
         TirePosition.objects.all().delete()
         Vehicle.objects.all().delete()
@@ -42,6 +43,14 @@ class Command(BaseCommand):
         status_reserve = TireStatus.objects.create(
             status_name="Reserve",
             description="Tire is kept as backup"
+        )
+        status_ready = TireStatus.objects.create(
+            status_name="READY",
+            description="Ready for assignment"
+        )
+        status_mounted = TireStatus.objects.create(
+            status_name="MOUNTED",
+            description="Currently mounted on vehicle"
         )
 
         # 2. TirePattern - Create 5 patterns
@@ -342,40 +351,50 @@ class Command(BaseCommand):
             )
             positions.append(pos)
 
-        # 8. Tire - Create 25 tires (5 of each pattern)
+        # 8. Tire - Create 25 tires (5 of each pattern) WITH NEW FIELDS
         self.stdout.write('Creating Tire...')
         tires = []
         patterns = [pattern_michelin, pattern_bridgestone, pattern_goodyear, pattern_continental, pattern_pirelli]
-        statuses = [status_active, status_active, status_active, status_inactive, status_reserve]
-        suppliers = [supplier_tireworld, supplier_globaltires, supplier_europarts, supplier_orientire, supplier_quickfix]
         
         for i in range(25):
             pattern_idx = i % 5
-            status_idx = i % 5
+            status_idx = i % 7  # Now we have 7 statuses
             supplier_idx = i % 5
             
+            # Determine if tire should be mounted or not
+            is_mounted = i < 15  # First 15 tires are mounted
+            
+            # Create tire
             tire = Tire.objects.create(
                 serial_number=f"TIR{i+1:03d}2023{patterns[pattern_idx].pattern_code[:3]}",
                 pattern=patterns[pattern_idx],
-                status=statuses[status_idx],
+                status=[status_active, status_inactive, status_repair, status_scrap, status_reserve, status_ready, status_mounted][status_idx],
                 purchase_date=timezone.now().date(),
-                purchase_cost=400.00 + (i * 25),  # Varying costs
-                supplier=suppliers[supplier_idx],
+                purchase_cost=400.00 + (i * 25),
+                supplier=[supplier_tireworld, supplier_globaltires, supplier_europarts, supplier_orientire, supplier_quickfix][supplier_idx],
                 initial_tread_depth=patterns[pattern_idx].initial_tread_depth,
-                notes=f"Tire {i+1} - {patterns[pattern_idx].brand_name} {patterns[pattern_idx].pattern_code}"
+                last_tread_depth=patterns[pattern_idx].initial_tread_depth - (i * 0.3),  # Some wear
+                last_pressure=patterns[pattern_idx].ideal_tire_pressure - (i % 3 * 5),  # Some pressure variation
+                notes=f"Tire {i+1} - {patterns[pattern_idx].brand_name} {patterns[pattern_idx].pattern_code}",
+                is_scrapped=(status_idx == 3)  # Scrap status
             )
+            
+            # Mount tires to positions (first 15 tires)
+            if is_mounted and i < len(positions):
+                position = positions[i]
+                position.mounted_tire = tire
+                position.save()
+                
+                # Set tire's current position and vehicle
+                tire.current_position = position
+                tire.current_vehicle = position.vehicle
+                tire.save()
+            
             tires.append(tire)
 
-        # Assign some tires to positions
-        for i, position in enumerate(positions[:20]):  # Assign to first 20 positions
-            position.mounted_tire = tires[i]
-            position.save()
-
-        # 9. WorkOrder - Create 5 work orders
+        # 9. WorkOrder - Create work orders with OPENED status for testing assignments
         self.stdout.write('Creating WorkOrder...')
         work_orders = []
-        shift_types = ["INSPECTION", "ASSIGNMENT", "INSPECTION", "ASSIGNMENT", "INSPECTION"]
-        statuses = ["PENDING", "OPENED", "COMPLETED", "CLOSED", "PENDING"]
         
         for i in range(5):
             work_order = WorkOrder.objects.create(
@@ -384,10 +403,25 @@ class Command(BaseCommand):
                 assigned_to=[employee_john, employee_mike, employee_sarah, employee_david, employee_lisa][i],
                 vehicle=[vehicle_truck, vehicle_trailer, vehicle_bus, vehicle_van, vehicle_truck2][i],
                 current_odometer=50000 + (i * 10000),
-                shift_type=shift_types[i],
-                status=statuses[i],
+                shift_type="ASSIGNMENT" if i % 2 == 0 else "INSPECTION",
+                status="OPENED",  # CRITICAL: Must be OPENED for assignments to work
                 cost=75.00 + (i * 50),
-                notes=f"Work order {i+1} for {['truck', 'trailer', 'bus', 'van', 'truck'][i]} maintenance"
+                notes=f"Work order {i+1} for tire assignment/inspection"
+            )
+            work_orders.append(work_order)
+        
+        # Also create some PENDING and CLOSED work orders
+        for i in range(5, 10):
+            work_order = WorkOrder.objects.create(
+                work_order_number=f"WO{i+1:03d}",
+                driver_id=f"DRV{i+1:03d}",
+                assigned_to=[employee_john, employee_mike, employee_sarah, employee_david, employee_lisa][i % 5],
+                vehicle=[vehicle_truck, vehicle_trailer, vehicle_bus, vehicle_van, vehicle_truck2][i % 5],
+                current_odometer=60000 + (i * 10000),
+                shift_type="ASSIGNMENT",
+                status="PENDING" if i % 2 == 0 else "CLOSED",
+                cost=100.00 + (i * 50),
+                notes=f"Work order {i+1} - {['PENDING', 'CLOSED'][i % 2]} status"
             )
             work_orders.append(work_order)
 
@@ -419,24 +453,22 @@ class Command(BaseCommand):
             recovery_scheme="Balance wheels and check suspension"
         )
 
-        # 11. TireInspection - Create 10 inspections (2 per vehicle)
+        # 11. TireInspection - Create 15 inspections
         self.stdout.write('Creating TireInspection...')
         inspections = []
-        for i in range(10):
-            # Use tires that are mounted on positions
-            tire_idx = i % 20  # Use first 20 tires that are mounted
-            vehicle_idx = i // 2  # 2 inspections per vehicle
-            position_idx = i % 5  # Use different positions
+        for i in range(15):
+            tire = tires[i]  # Use first 15 tires (mounted ones)
+            position = tire.current_position if tire.current_position else positions[i % len(positions)]
+            work_order = work_orders[i % len(work_orders)]
             
             inspection = TireInspection.objects.create(
-                tire=tires[tire_idx],
-                position=positions[position_idx + (vehicle_idx * 5)],  # Positions for this vehicle
+                tire=tire,
+                position=position,
                 inspection_odometer=50000 + (i * 2000),
                 inspector=[employee_john, employee_mike, employee_sarah, employee_david, employee_lisa][i % 5],
-                tread_depth=tires[tire_idx].initial_tread_depth - (i * 0.5),  # Simulate wear
-                pressure=100.00 - (i * 2),  # Simulate pressure variation
+                tread_depth=tire.last_tread_depth if tire.last_tread_depth else 12.0,
+                pressure=tire.last_pressure if tire.last_pressure else 95.0,
                 wear_id=[wear_even, wear_center, wear_edges, wear_shoulder, wear_patchy][i % 5],
-                # Calculated fields will be set by your view logic
                 consumption_rate=0.05 + (i * 0.01),
                 remaining_traveling_distance=100000 - (i * 5000),
                 cost_per_mm_tread_depth=25.00 + (i * 2),
@@ -444,28 +476,56 @@ class Command(BaseCommand):
                 fuel_consumption_increase=0.1 + (i * 0.05),
                 fuel_loss_caused=50.00 + (i * 10),
                 current_tire_value=300.00 - (i * 15),
-                balance_traveling_distance=80000 - (i * 4000)
+                balance_traveling_distance=80000 - (i * 4000),
+                work_order=work_order
             )
             inspections.append(inspection)
+            
+            # Update tire's latest readings
+            tire.last_tread_depth = inspection.tread_depth
+            tire.last_pressure = inspection.pressure
+            tire.save()
 
-        # 12. TireAssignment - Create 5 assignments with updated structure
+        # 12. TireAssignment - Create assignments for testing
         self.stdout.write('Creating TireAssignment...')
+        
+        # Create some assignments where tires move
         for i in range(5):
-            # Use different tires and positions for assignments
-            from_position_idx = i
-            to_position_idx = (i + 2) % 20  # Assign to different position
+            # Use mounted tires that have inspections
+            tire = tires[i]
+            from_position = tire.current_position
+            to_position = positions[(i + 5) % len(positions)]  # Different position
+            
+            # Ensure to_position is empty for the assignment
+            if to_position.mounted_tire:
+                # Create another empty position if needed
+                empty_positions = [p for p in positions if not p.mounted_tire]
+                if empty_positions:
+                    to_position = empty_positions[0]
             
             assignment = TireAssignment.objects.create(
-                tire=tires[i],
-                tire_position_from=positions[from_position_idx],
-                tire_position_to=positions[to_position_idx],
+                tire=tire,
+                tire_position_from=from_position,
+                tire_position_to=to_position,
                 assignment_date=timezone.now().date(),
-                removal_date=timezone.now().date() if i % 2 == 0 else None,  # Some have removal dates
+                removal_date=timezone.now().date() if i % 2 == 0 else None,
                 work_order=work_orders[i],
-                inspection=inspections[i],  # Link to corresponding inspection
+                inspection=inspections[i],
                 reason_for_removal="Regular rotation" if i % 2 == 0 else "Wear issues",
-                notes=f"Tire assignment {i+1} - {tires[i].serial_number} from {positions[from_position_idx].position_name} to {positions[to_position_idx].position_name}"
+                notes=f"Test assignment {i+1}"
             )
+            
+            # IMPORTANT: Update positions and tire AFTER creating assignment
+            if from_position:
+                from_position.mounted_tire = None
+                from_position.save()
+            
+            to_position.mounted_tire = tire
+            to_position.save()
+            
+            tire.current_position = to_position
+            tire.current_vehicle = to_position.vehicle
+            tire.save()
 
         # 13. MaintenanceRecord - Create 5 maintenance records
         self.stdout.write('Creating MaintenanceRecord...')
@@ -477,9 +537,25 @@ class Command(BaseCommand):
                 service_mileage=50000 + (i * 15000),
                 cost=120.00 + (i * 80),
                 service_provider=[supplier_tireworld, supplier_globaltires, supplier_quickfix, supplier_europarts, supplier_orientire][i],
-                notes=f"Maintenance record {i+1} - {['repair', 'rotation', 'balancing', 'alignment', 'inspection'][i]} service"
+                notes=f"Maintenance record {i+1}"
             )
 
         self.stdout.write(
-            self.style.SUCCESS('Successfully loaded dummy data for all models with updated TireAssignment structure!')
+            self.style.SUCCESS('Successfully loaded dummy data with proper relationships for testing tire assignments!')
         )
+        self.stdout.write('\n=== TEST DATA SUMMARY ===')
+        self.stdout.write(f'- Vehicles: {Vehicle.objects.count()}')
+        self.stdout.write(f'- Tires: {Tire.objects.count()} (15 mounted, 10 unmounted)')
+        self.stdout.write(f'- Tire Positions: {TirePosition.objects.count()}')
+        self.stdout.write(f'- Work Orders: {WorkOrder.objects.count()} (5 OPENED for testing)')
+        self.stdout.write(f'- Tire Assignments: {TireAssignment.objects.count()}')
+        self.stdout.write(f'- Tire Inspections: {TireInspection.objects.count()}')
+        self.stdout.write('\n=== TESTING TIRE ASSIGNMENT SCENARIOS ===')
+        self.stdout.write('1. Positions WITH tires (for FROM positions):')
+        self.stdout.write(f'   - Count: {TirePosition.objects.filter(mounted_tire__isnull=False).count()}')
+        self.stdout.write('2. EMPTY positions (for TO positions):')
+        self.stdout.write(f'   - Count: {TirePosition.objects.filter(mounted_tire__isnull=True).count()}')
+        self.stdout.write('3. Tires that can be assigned:')
+        ready_tires = Tire.objects.filter(status__status_name__in=['READY', 'MOUNTED', 'Active'])
+        self.stdout.write(f'   - Count: {ready_tires.count()}')
+        self.stdout.write('\nYou can now test the tire assignment feature!')

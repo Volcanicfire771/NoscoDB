@@ -12,7 +12,9 @@ def tire_inspections_list(request):
     tire_positions = TirePosition.objects.all()
     employees = Employee.objects.all()
     wear_types = TireWearType.objects.all()
+    work_orders = WorkOrder.objects.all()
     vehicles = Vehicle.objects.all()
+    
 
     # Fix vehicle_tire_data to be JSON serializable
     vehicle_tire_data = {}
@@ -42,10 +44,11 @@ def tire_inspections_list(request):
     inspector_filter = request.GET.get('inspector_filter', '')
     wear_filter = request.GET.get('wear_filter', '')
     work_order_id = request.GET.get('work_order', '')
-    
+    work_order_filter = request.GET.get('work_order_filter', '')
     # Initialize variables with default values
     vehicle_filter = None
     employee_filter = None
+    
     inspection_odometer_autofill = None
     work_order_obj = None
     tire_position_map = {}
@@ -70,6 +73,9 @@ def tire_inspections_list(request):
         tire_inspections = tire_inspections.filter(inspector_id=inspector_filter)
     if wear_filter:
         tire_inspections = tire_inspections.filter(wear_id=wear_filter)  
+
+    if work_order_filter:
+        tire_inspections = tire_inspections.filter(work_order_id=work_order_filter)
 
     # Handle vehicle-based filtering
     if vehicle_filter:
@@ -114,6 +120,7 @@ def tire_inspections_list(request):
         'work_order_obj': work_order_obj,
         'vehicles': vehicles,
         'vehicle_tire_data': vehicle_tire_data,
+        'work_orders':work_orders,
     }
     return render(request, 'tire_inspections/tire_inspections_list.html', context)
 
