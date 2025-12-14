@@ -1,376 +1,539 @@
 {% extends 'base/base.html' %}
 
-{% block title %}Dashboard - URES Tire System{% endblock %}
-
-{% block page_title %}Tire Management Dashboard{% endblock %}
-
-{% block page_actions %}
-    <div class="btn-group">
-        <button class="btn btn-outline-secondary" onclick="refreshData()">
-            🔄 Refresh
-        </button>
-    </div>
-{% endblock %}
-
 {% block content %}
-<div class="container-fluid">
-    <!-- Quick Stats -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card text-white bg-primary">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4>{{ vehicles_count }}</h4>
-                            <p>Total Vehicles</p>
-                        </div>
-                        <div class="align-self-center">
-                            <span style="font-size: 2rem;">🚗</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+<div class="menu-container">
+  <!-- Header Section with Date -->
+  <div class="menu-header">
+    <div class="header-content">
+      <h1 class="page-title">Dashboard</h1>
+      <p class="page-subtitle" id="currentDate">Today</p>
+    </div>
+  </div>
+
+  <!-- Quick Stats Cards -->
+  <div class="stats-section">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon vehicles-icon">🚗</div>
+        <div class="stat-content">
+          <p class="stat-label">Total Vehicles</p>
+          <p class="stat-value">{{ total_vehicles }}</p>
         </div>
-        <div class="col-md-3">
-            <div class="card text-white bg-success">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4>{{ tires_count }}</h4>
-                            <p>Active Tires</p>
-                        </div>
-                        <div class="align-self-center">
-                            <span style="font-size: 2rem;">🛞</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon tires-icon">🛞</div>
+        <div class="stat-content">
+          <p class="stat-label">Active Tires</p>
+          <p class="stat-value">{{ active_tires }}</p>
         </div>
-        <div class="col-md-3">
-            <div class="card text-white bg-warning">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4>{{ inspections_count }}</h4>
-                            <p>Inspections Today</p>
-                        </div>
-                        <div class="align-self-center">
-                            <span style="font-size: 2rem;">📊</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon inspections-icon">📋</div>
+        <div class="stat-content">
+          <p class="stat-label">Inspections Today</p>
+          <p class="stat-value">{{ inspections_today }}</p>
         </div>
-        <div class="col-md-3">
-            <div class="card text-white bg-info">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h4>{{ work_orders_count }}</h4>
-                            <p>Active Work Orders</p>
-                        </div>
-                        <div class="align-self-center">
-                            <span style="font-size: 2rem;">📋</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon work-orders-icon">⚙️</div>
+        <div class="stat-content">
+          <p class="stat-label">Active Work Orders</p>
+          <p class="stat-value">{{ active_work_orders }}</p>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Cards -->
+  <div class="action-cards-section">
+    <!-- Work Orders Card -->
+    <div class="action-card">
+      <div class="card-icon work-icon">⚙️</div>
+      <div class="card-content">
+        <h3 class="card-title">Work Orders</h3>
+        <p class="card-description">Manage and track all work orders, inspections, and assignments in one place</p>
+        <div class="card-features">
+          <span class="feature">📝 Create Orders</span>
+          <span class="feature">👁️ View Details</span>
+          <span class="feature">✏️ Edit & Update</span>
+        </div>
+      </div>
+      <a href="{% url 'work_order_list' %}" class="card-button">
+        Open Work Orders →
+      </a>
     </div>
 
-    <!-- Main Processes Section -->
-    <div class="row">
-        <!-- Process 1: Tire Inspection Workflow -->
-        <div class="col-lg-6 mb-4">
-            <div class="card border-primary">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-clipboard-check me-2"></i>
-                        Tire Inspection Process
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <p class="card-text">Complete the tire inspection workflow to record tire conditions, calculate wear metrics, and generate maintenance recommendations.</p>
-                    
-                    <div class="process-steps mb-4">
-                        <div class="step current">
-                            <span class="step-number">1</span>
-                            <span class="step-text">Create Work Order</span>
-                        </div>
-                        <div class="step">
-                            <span class="step-number">2</span>
-                            <span class="step-text">Tire Inspections</span>
-                        </div>
-                        <div class="step">
-                            <span class="step-number">3</span>
-                            <span class="step-text">Tire Assignments</span>
-                        </div>
-                        <div class="step">
-                            <span class="step-number">4</span>
-                            <span class="step-text">Generate Report</span>
-                        </div>
-                    </div>
-
-                    <div class="d-grid gap-2">
-                        <a href="{% url 'work_order_list' %}?create=true" class="btn btn-primary btn-lg">
-                            🛞 Start Tire Inspection
-                        </a>
-                        <!-- <a href="{% url 'tire_inspections_create' %}" class="btn btn-outline-primary">
-                            + Quick Inspection
-                        </a> -->
-                    </div>
-                </div>
-                <div class="card-footer bg-light">
-                    <small class="text-muted">
-                        Last inspection: {{ last_inspection_date|default:"No inspections yet" }}
-                    </small>
-                </div>
-            </div>
+    <!-- Import Data Card -->
+    <div class="action-card">
+      <div class="card-icon import-icon">📥</div>
+      <div class="card-content">
+        <h3 class="card-title">Import Data</h3>
+        <p class="card-description">Import tires, inspections, and maintenance data from Excel or CSV files</p>
+        <div class="card-features">
+          <span class="feature">📊 Upload Files</span>
+          <span class="feature">🔄 Map Columns</span>
+          <span class="feature">✅ Verify Data</span>
         </div>
-
-        <!-- Process 2: Tire Assignment Workflow -->
-        <div class="col-lg-6 mb-4">
-            <div class="card border-success">
-                <div class="card-header bg-success text-white">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-exchange-alt me-2"></i>
-                        Tire Assignment Process
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <p class="card-text">Manage tire assignments, rotations, and replacements across your vehicle fleet with complete tracking and history.</p>
-                    
-                    <div class="process-steps mb-4">
-                        <div class="step completed">
-                            <span class="step-number">1</span>
-                            <span class="step-text">Select Tire & Position</span>
-                        </div>
-                        <div class="step current">
-                            <span class="step-number">2</span>
-                            <span class="step-text">Assign/Remove Tire</span>
-                        </div>
-                        <div class="step">
-                            <span class="step-number">3</span>
-                            <span class="step-text">Update Inventory</span>
-                        </div>
-                        <div class="step">
-                            <span class="step-number">4</span>
-                            <span class="step-text">Generate Work Order</span>
-                        </div>
-                    </div>
-
-                    <div class="d-grid gap-2">
-                        <a href="{% url 'tire_assignment_list' %}" class="btn btn-success btn-lg">
-                            🔧 Manage Tire Assignments
-                        </a>
-                        <a href="{% url 'tire_assignment_create' %}" class="btn btn-outline-success">
-                            + New Assignment
-                        </a>
-                    </div>
-                </div>
-                <div class="card-footer bg-light">
-                    <small class="text-muted">
-                        Active assignments: {{ active_assignments_count }}
-                    </small>
-                </div>
-            </div>
-        </div>
+      </div>
+      <a href="{% url 'import_excel_upload' %}" class="card-button">
+        Start Import →
+      </a>
     </div>
+  </div>
 
-    <!-- Quick Actions -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Quick Actions</h5>
+  <!-- Activity Section -->
+  <div class="activity-section">
+    <div class="activity-row">
+      <!-- Recent Inspections -->
+      <div class="activity-card">
+        <h3 class="activity-title">Recent Inspections</h3>
+        <div class="activity-list">
+          {% if recent_inspections %}
+            {% for inspection in recent_inspections|slice:":5" %}
+              <div class="activity-item">
+                <div class="activity-indicator inspection-indicator"></div>
+                <div class="activity-details">
+                  <p class="activity-main">
+                    <strong>Tread Depth:</strong> {{ inspection.tread_depth }}mm
+                  </p>
+                  <p class="activity-meta">
+                    Position: {{ inspection.position }} • {{ inspection.inspection_date|date:"M d, Y" }}
+                  </p>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <a href="{% url 'work_order_create' %}" class="btn btn-outline-primary w-100">
-                                📋 Create Work Order
-                            </a>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <a href="{% url 'tires_list' %}" class="btn btn-outline-secondary w-100">
-                                🛞 View Tire Inventory
-                            </a>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <a href="{% url 'vehicle_list' %}" class="btn btn-outline-info w-100">
-                                🚗 Manage Vehicles
-                            </a>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <a href="{% url 'maintenance_records_list' %}" class="btn btn-outline-warning w-100">
-                                🔧 Maintenance Records
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="activity-empty">No recent inspections</p>
+          {% endif %}
         </div>
-    </div>
+      </div>
 
-    <!-- Recent Activity -->
-    <div class="row mt-4">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Recent Inspections</h5>
+      <!-- Pending Work Orders -->
+      <div class="activity-card">
+        <h3 class="activity-title">Pending Work Orders</h3>
+        <div class="activity-list">
+          {% if pending_work_orders %}
+            {% for order in pending_work_orders|slice:":5" %}
+              <div class="activity-item">
+                <div class="activity-indicator pending-indicator"></div>
+                <div class="activity-details">
+                  <p class="activity-main">
+                    <strong>{{ order.vehicle }}</strong>
+                  </p>
+                  <p class="activity-meta">
+                    Assigned to {{ order.assigned_to }} • {{ order.date_created|date:"M d, Y" }}
+                  </p>
                 </div>
-                <div class="card-body">
-                    {% if recent_inspections %}
-                        <div class="list-group list-group-flush">
-                            {% for inspection in recent_inspections %}
-                            <div class="list-group-item">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <h6 class="mb-1">{{ inspection.tire.serial_number }}</h6>
-                                    <small>{{ inspection.created_at|timesince }} ago</small>
-                                </div>
-                                <p class="mb-1">Tread: {{ inspection.tread_depth }}mm | Pressure: {{ inspection.pressure }}PSI</p>
-                                <small class="text-muted">Vehicle: {{ inspection.position.vehicle.license_plate }}</small>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <p class="text-muted">No recent inspections</p>
-                    {% endif %}
-                </div>
-            </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="activity-empty">No pending work orders</p>
+          {% endif %}
         </div>
-        
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Pending Work Orders</h5>
-                </div>
-                <div class="card-body">
-                    {% if pending_work_orders %}
-                        <div class="list-group list-group-flush">
-                            {% for order in pending_work_orders %}
-                            <div class="list-group-item">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <h6 class="mb-1">{{ order.work_order_number }}</h6>
-                                    <span class="badge bg-warning">{{ order.get_status_display }}</span>
-                                </div>
-                                <p class="mb-1">{{ order.vehicle.license_plate }} - {{ order.get_shift_type_display }}</p>
-                                <small class="text-muted">Assigned to: {{ order.assigned_to.first_name }}</small>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <p class="text-muted">No pending work orders</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
+      </div>
     </div>
+  </div>
+
+  <!-- Quick Links -->
+  <div class="quick-links-section">
+    <h3 class="section-title">Quick Access</h3>
+    <div class="quick-links-grid">
+      <a href="{% url 'vehicle_list' %}" class="quick-link">
+        <span class="link-icon">🚗</span>
+        <span class="link-text">Vehicles</span>
+      </a>
+      <a href="{% url 'tires_list' %}" class="quick-link">
+        <span class="link-icon">🛞</span>
+        <span class="link-text">Tires</span>
+      </a>
+      <a href="{% url 'tire_assignment_list' %}" class="quick-link">
+        <span class="link-icon">🔗</span>
+        <span class="link-text">Assignments</span>
+      </a>
+      <a href="{% url 'maintenance_records_list' %}" class="quick-link">
+        <span class="link-icon">📝</span>
+        <span class="link-text">Maintenance</span>
+      </a>
+      <a href="{% url 'work_order_list' %}" class="quick-link">
+        <span class="link-icon">⚙️</span>
+        <span class="link-text">Work Orders</span>
+      </a>
+      <a href="{% url 'tire_inspections_list' %}" class="quick-link">
+        <span class="link-icon">📋</span>
+        <span class="link-text">Inspections</span>
+      </a>
+    </div>
+  </div>
 </div>
-{% endblock %}
 
-{% block extra_css %}
 <style>
-.process-steps {
-    display: flex;
-    justify-content: space-between;
-    position: relative;
-    margin: 20px 0;
-}
+  :root {
+    --color-primary: #2180a0;
+    --color-primary-dark: #1a6680;
+    --color-secondary: #f5f5f5;
+    --color-text: #333;
+    --color-text-light: #666;
+    --color-border: #e0e0e0;
+    --color-success: #27ae60;
+    --color-warning: #f39c12;
+    --color-info: #3498db;
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+  }
 
-.process-steps::before {
-    content: '';
-    position: absolute;
-    top: 15px;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: #dee2e6;
-    z-index: 1;
-}
+  .menu-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+  }
 
-.step {
+  /* Header */
+  .menu-header {
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-lg);
+    border-bottom: 2px solid var(--color-border);
+  }
+
+  .page-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0 0 var(--spacing-sm) 0;
+  }
+
+  .page-subtitle {
+    font-size: 14px;
+    color: var(--color-text-light);
+    margin: 0;
+  }
+
+  /* Stats Section */
+  .stats-section {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
+  }
+
+  .stat-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
     display: flex;
-    flex-direction: column;
     align-items: center;
-    position: relative;
-    z-index: 2;
-}
+    gap: var(--spacing-lg);
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
 
-.step-number {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: #6c757d;
-    color: white;
+  .stat-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+
+  .stat-icon {
+    font-size: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: bold;
-    margin-bottom: 5px;
-}
+    width: 60px;
+    height: 60px;
+    border-radius: var(--radius-lg);
+    background: var(--color-secondary);
+  }
 
-.step.completed .step-number {
-    background: #28a745;
-}
+  .stat-content {
+    flex: 1;
+  }
 
-.step.current .step-number {
-    background: #007bff;
-    transform: scale(1.1);
-}
+  .stat-label {
+    font-size: 12px;
+    color: var(--color-text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 var(--spacing-xs) 0;
+  }
 
-.step-text {
-    font-size: 0.8rem;
-    text-align: center;
-    color: #6c757d;
-}
+  .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin: 0;
+  }
 
-.step.completed .step-text,
-.step.current .step-text {
-    color: #007bff;
+  /* Action Cards */
+  .action-cards-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .action-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    transition: all 0.3s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+
+  .action-card:hover {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    transform: translateY(-4px);
+  }
+
+  .card-icon {
+    font-size: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 70px;
+    height: 70px;
+    border-radius: var(--radius-lg);
+    background: var(--color-secondary);
+  }
+
+  .card-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0;
+  }
+
+  .card-description {
+    font-size: 14px;
+    color: var(--color-text-light);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .card-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+  }
+
+  .feature {
+    font-size: 12px;
+    background: var(--color-secondary);
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    white-space: nowrap;
+  }
+
+  .card-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-primary);
+    color: white;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s;
+    align-self: flex-start;
+    margin-top: var(--spacing-sm);
+  }
+
+  .card-button:hover {
+    background: var(--color-primary-dark);
+    transform: translateX(4px);
+    color: white;
+  }
+
+  /* Activity Section */
+  .activity-section {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .activity-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+  }
+
+  .activity-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+
+  .activity-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0 0 var(--spacing-lg) 0;
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .activity-item {
+    display: flex;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) 0;
+  }
+
+  .activity-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-top: 4px;
+    flex-shrink: 0;
+  }
+
+  .inspection-indicator {
+    background: var(--color-info);
+  }
+
+  .pending-indicator {
+    background: var(--color-warning);
+  }
+
+  .activity-details {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .activity-main {
+    font-size: 14px;
+    color: var(--color-text);
+    margin: 0 0 var(--spacing-xs) 0;
     font-weight: 500;
-}
+  }
 
-.card {
-    transition: transform 0.2s;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-}
+  .activity-meta {
+    font-size: 12px;
+    color: var(--color-text-light);
+    margin: 0;
+  }
 
-.card:hover {
+  .activity-empty {
+    color: var(--color-text-light);
+    font-size: 13px;
+    margin: 0;
+    text-align: center;
+    padding: var(--spacing-lg);
+  }
+
+  /* Quick Links */
+  .quick-links-section {
+    margin-top: var(--spacing-xl);
+  }
+
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0 0 var(--spacing-lg) 0;
+  }
+
+  .quick-links-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: var(--spacing-md);
+  }
+
+  .quick-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-lg);
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    color: var(--color-text);
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+
+  .quick-link:hover {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     transform: translateY(-2px);
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-}
+  }
 
-.btn-lg {
-    padding: 12px 24px;
-    font-size: 1.1rem;
-}
+  .link-icon {
+    font-size: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .link-text {
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  @media (max-width: 768px) {
+    .menu-container {
+      padding: var(--spacing-md);
+    }
+
+    .stats-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .stat-card {
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .page-title {
+      font-size: 24px;
+    }
+
+    .action-cards-section {
+      grid-template-columns: 1fr;
+    }
+
+    .quick-links-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
 </style>
-{% endblock %}
 
-{% block extra_js %}
 <script>
-function refreshData() {
-    // You can add AJAX refresh functionality here
-    location.reload();
-}
-
-// Add some interactive effects
-document.addEventListener('DOMContentLoaded', function() {
-    // Add click effects to process cards
-    const processCards = document.querySelectorAll('.card');
-    processCards.forEach(card => {
-        card.addEventListener('click', function(e) {
-            if (e.target.tagName === 'A') return; // Don't trigger if clicking links
-            const link = this.querySelector('a.btn-lg');
-            if (link) {
-                link.style.transform = 'scale(0.95)';
-                setTimeout(() => {
-                    link.style.transform = '';
-                }, 150);
-            }
-        });
-    });
-});
+  document.addEventListener('DOMContentLoaded', function() {
+    // Update date
+    const dateElement = document.getElementById('currentDate');
+    const today = new Date();
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    dateElement.textContent = today.toLocaleDateString('en-US', options);
+  });
 </script>
 {% endblock %}

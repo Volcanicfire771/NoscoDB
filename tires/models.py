@@ -1,10 +1,8 @@
 # models.py
 from django.db import models
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from django.utils import timezone
+from django.contrib.auth.models import User
+from django.core.serializers.json import DjangoJSONEncoder
 
-# 1. Independent models (no foreign keys)
 class TireStatus(models.Model):
     status_name = models.CharField(max_length=50)
     description = models.TextField(blank=True)
@@ -19,10 +17,10 @@ class TirePattern(models.Model):
     load_index = models.CharField(max_length=10)
     speed_symbol = models.CharField(max_length=5)
     road_type = models.CharField(max_length=50)
-    axle_type = models.CharField(max_length=50, default='DRIVE')
-    initial_tread_depth = models.DecimalField(max_digits=4, decimal_places=2, default=15.00)
-    discarding_tread_depth = models.DecimalField(max_digits=4, decimal_places=2, default=3.00)
-    ideal_tire_pressure = models.DecimalField(max_digits=5, decimal_places=2, default=100.00)
+    axle_type = models.CharField(max_length=50, default='DRIVE')  # ADDED DEFAULT
+    initial_tread_depth = models.DecimalField(max_digits=4, decimal_places=2, default=15.00)  # ADDED DEFAULT
+    discarding_tread_depth = models.DecimalField(max_digits=4, decimal_places=2, default=3.00)  # ADDED DEFAULT
+    ideal_tire_pressure = models.DecimalField(max_digits=5, decimal_places=2, default=100.00)  # ADDED DEFAULT
     
     def __str__(self):
         return f"{self.brand_name} - {self.pattern_code}"
@@ -57,15 +55,6 @@ class Supplier(models.Model):
     def __str__(self):
         return self.supplier_name
 
-class TireWearType(models.Model):
-    name = models.CharField(max_length=50)
-    wear_common_cause = models.CharField(max_length=50)
-    recovery_scheme = models.TextField()
-
-    def __str__(self):
-        return self.name
-
-# 2. Vehicle (independent, used by many others)
 class Vehicle(models.Model):
     VEHICLE_TYPES = [
         ('TRUCK', 'Truck'),
@@ -93,74 +82,6 @@ class Vehicle(models.Model):
     def __str__(self):
         return f"{self.license_plate} - {self.make}"
 
-# 3. Tire (depends on TirePattern, TireStatus, Supplier)
-class Tire(models.Model):
-    serial_number = models.CharField(max_length=100, unique=True)
-    pattern = models.ForeignKey(TirePattern, on_delete=models.PROTECT)
-    status = models.ForeignKey(TireStatus, on_delete=models.PROTECT)
-    purchase_date = models.DateField()
-    purchase_cost = models.DecimalField(max_digits=10, decimal_places=2)
-    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, null=True, blank=True)
-    initial_tread_depth = models.DecimalField(max_digits=10, decimal_places=2)
-    last_tread_depth = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    last_pressure = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    notes = models.TextField(blank=True)
-    
-    # New fields for tracking current location
-    current_position = models.ForeignKey(
-        'TirePosition', 
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='current_tire'
-    )
-    current_vehicle = models.ForeignKey(
-        Vehicle,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='current_tires'
-    )
-    is_scrapped = models.BooleanField(default=False)
-    
-    # Optional: Add this field if you want to track last assignment
-    last_assignment = models.ForeignKey(
-        'TireAssignment',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='last_for_tire'
-    )
-    
-    def __str__(self):
-        return self.serial_number
-    
-    @property
-    def can_be_assigned(self):
-        """Check if tire is in a state that allows assignment"""
-        if self.is_scrapped:
-            return False
-        
-        # Get status name safely
-        status_name = self.status.status_name if self.status else ""
-        
-        # Define invalid statuses for assignment
-        invalid_statuses = ['DISCARDED', 'SCRAP', 'SCRAPPED']
-        
-        # Define valid statuses
-        valid_statuses = ['READY', 'MOUNTED', 'ACTIVE', 'IN_STOCK']
-        
-        # Check both invalid and valid lists
-        if status_name in invalid_statuses:
-            return False
-        
-        # If we have valid statuses defined, check against them
-        if valid_statuses:
-            return status_name in valid_statuses
-        
-        return True  # Default to True if no specific valid statuses
-
-# 4. TirePosition (depends on Vehicle, Tire)
 class TirePosition(models.Model):
     AXLE_TYPES = [
         ('STEERING', 'Steering Axle'),
@@ -173,12 +94,12 @@ class TirePosition(models.Model):
     position_name = models.CharField(max_length=50)
     axle_number = models.IntegerField()
     wheel_number = models.IntegerField()
-    axle_type = models.CharField(max_length=20, choices=AXLE_TYPES, default='DRIVE')
+    axle_type = models.CharField(max_length=20, choices=AXLE_TYPES, default='DRIVE')  # ADDED DEFAULT
     tire_order = models.IntegerField(default=1)
     is_spare = models.BooleanField(default=False)
     
     mounted_tire = models.ForeignKey(
-        Tire, 
+        'Tire', 
         on_delete=models.SET_NULL, 
         null=True, 
         blank=True,
@@ -191,7 +112,22 @@ class TirePosition(models.Model):
     def __str__(self):
         return f"{self.vehicle.license_plate} - {self.position_name}"
 
-# 5. WorkOrder (depends on Employee, Vehicle)
+class Tire(models.Model):
+    serial_number = models.CharField(max_length=100, unique=True)
+    pattern = models.ForeignKey(TirePattern, on_delete=models.PROTECT)
+    status = models.ForeignKey(TireStatus, on_delete=models.PROTECT)
+    purchase_date = models.DateField()
+    purchase_cost = models.DecimalField(max_digits=10, decimal_places=2)
+    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, null=True, blank=True)
+    initial_tread_depth = models.DecimalField(max_digits=10, decimal_places=2)
+    last_tread_depth = models.DecimalField(max_digits=5, decimal_places=2, null=True)
+    last_pressure = models.DecimalField(max_digits=5, decimal_places=2, null=True)
+    notes = models.TextField(blank=True)
+    
+
+    def __str__(self):
+        return self.serial_number
+
 class WorkOrder(models.Model):
     SHIFT_TYPES = [
         ('INSPECTION', 'Tire Inspection'),
@@ -212,16 +148,17 @@ class WorkOrder(models.Model):
                                   related_name='work_orders')
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, 
                               related_name='work_orders')
-    current_odometer = models.IntegerField()
+    current_odometer = models.IntegerField()  # Renamed from current_mileage
     shift_type = models.CharField(max_length=20, choices=SHIFT_TYPES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
-    cost = models.DecimalField(max_digits=10, decimal_places=2, default=0, null=True, blank=True)
+    cost = models.DecimalField(max_digits=10, decimal_places=2, default=0,null=True)
     notes = models.TextField(blank=True)
     
     def __str__(self):
         return self.work_order_number
 
-# 6. MaintenanceRecord (depends on Vehicle, ServiceType, Supplier)
+
+
 class MaintenanceRecord(models.Model):
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, 
                               related_name='maintenance_records')
@@ -236,7 +173,14 @@ class MaintenanceRecord(models.Model):
     def __str__(self):
         return f"{self.vehicle.license_plate} - {self.service_date}"
 
-# 7. TireInspection (depends on Tire, TirePosition, Employee, TireWearType, WorkOrder)
+class TireWearType(models.Model):
+    name = models.CharField(max_length=50)
+    wear_common_cause = models.CharField(max_length=50)
+    recovery_scheme = models.TextField()
+
+    def __str__(self):
+        return self.name
+
 class TireInspection(models.Model):
     tire = models.ForeignKey(Tire, on_delete=models.CASCADE, related_name='inspections')
     position = models.ForeignKey(TirePosition, on_delete=models.CASCADE)
@@ -247,7 +191,7 @@ class TireInspection(models.Model):
     pressure = models.DecimalField(max_digits=5, decimal_places=2)
     wear_id = models.ForeignKey(TireWearType, on_delete=models.PROTECT)
 
-    # Calculated fields
+    # Fields that will be calculated in views
     consumption_rate = models.DecimalField(max_digits=6, decimal_places=2, default=0)
     remaining_traveling_distance = models.IntegerField(default=0)
     cost_per_mm_tread_depth = models.DecimalField(max_digits=6, decimal_places=2, default=0)
@@ -258,31 +202,29 @@ class TireInspection(models.Model):
     balance_traveling_distance = models.IntegerField(default=0)
 
     work_order = models.ForeignKey(
-        WorkOrder,
-        on_delete=models.CASCADE,
-        related_name='tire_inspections',
-        null=True, blank=True
-    )
-    
-    inspection_date = models.DateTimeField(auto_now_add=True)
+    WorkOrder,
+    on_delete=models.CASCADE,
+    related_name='tire_inspections',
+    null=True, blank=True)
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        # Update tire's latest readings
         self.tire.last_tread_depth = self.tread_depth
         self.tire.last_pressure = self.pressure
         self.tire.save()
 
-    def __str__(self):
-        return f"Inspection {self.id} - {self.tire.serial_number}"
 
-# 8. TireAssignment (depends on Tire, TirePosition, WorkOrder, TireInspection)
+    def __str__(self):
+        return f"{self.tire.serial_number}"
+
+
+
 class TireAssignment(models.Model):
     tire = models.ForeignKey(Tire, on_delete=models.CASCADE, related_name='assignments')
     tire_position_from = models.ForeignKey(TirePosition, on_delete=models.CASCADE, 
                                     related_name='assignments_from', null=True, blank=True)
     tire_position_to = models.ForeignKey(TirePosition, on_delete=models.CASCADE, 
-                                  related_name='assignments_to', null=True, blank=True)  # Allow null for discard
+                                  related_name='assignments_to')
     assignment_date = models.DateField()
     removal_date = models.DateField(null=True, blank=True)
     reason_for_removal = models.TextField(blank=True)
@@ -291,59 +233,174 @@ class TireAssignment(models.Model):
     inspection = models.ForeignKey(TireInspection, on_delete=models.SET_NULL,
                                 null=True, blank=True, related_name='assignments')
     notes = models.TextField(blank=True)
-    date_created = models.DateTimeField(auto_now_add=True)
-    is_discard_operation = models.BooleanField(default=False)
 
-    def is_discard(self):
-        """Check if this assignment is a discard operation"""
-        return self.is_discard_operation or self.tire_position_to is None
-    
-    def __str__(self):
-        if self.is_discard():
-            return f"{self.tire.serial_number} - DISCARDED"
+    def str(self):
         return f"{self.tire.serial_number} - {self.tire_position_to}"
     
-    def save(self, *args, **kwargs):
-        # Set assignment date to today if not provided
-        if not self.assignment_date:
-            self.assignment_date = timezone.now().date()
-        super().save(*args, **kwargs)
 
-# SIGNALS - Updated to handle discard operations
-@receiver(post_save, sender=TireAssignment)
-def update_related_models_on_assignment(sender, instance, created, **kwargs):
-    """Automatically update related models when assignment is created/updated"""
-    if created:
-        tire = instance.tire
-        
-        if instance.is_discard():
-            # ====== DISCARD OPERATION ======
-            # DON'T update current_position for discard (should be None)
-            # DON'T update inspections for discard
-            
-            # But we should update the tire's last_assignment
-            if hasattr(tire, 'last_assignment'):
-                tire.last_assignment = instance
-                tire.save()
-                
-        else:
-            # ====== NORMAL ASSIGNMENT ======
-            to_position = instance.tire_position_to
-            
-            # Update tire's current position only if to_position exists
-            if to_position:
-                tire.current_position = to_position
-                tire.current_vehicle = to_position.vehicle
-                
-                # Update last_assignment if field exists
-                if hasattr(tire, 'last_assignment'):
-                    tire.last_assignment = instance
-                
-                tire.save()
-            
-            # Update any inspections on this tire at the old position
-            if instance.tire_position_from:
-                TireInspection.objects.filter(
-                    tire=tire,
-                    position=instance.tire_position_from
-                ).update(position=to_position, work_order=instance.work_order)
+class ImportStaging(models.Model):
+    """
+    Temporary storage for imported rows before database insertion
+    """
+    SESSION_ID = models.CharField(max_length=100, db_index=True)
+    MODEL_TYPE = models.CharField(
+        max_length=50,
+        choices=[
+            ('inventory', 'Tire Inventory'),
+            ('inspection', 'Tire Inspection'),
+            ('assignment', 'Tire Assignment'),
+            ('maintenance', 'Maintenance Record'),
+            ('custom', 'Custom'),
+        ]
+    )
+    ROW_NUMBER = models.IntegerField()
+    DATA = models.JSONField(
+        default=dict,
+        encoder=DjangoJSONEncoder,
+        help_text="Raw row data from spreadsheet"
+    )
+    STATUS = models.CharField(
+        max_length=20,
+        choices=[
+            ('pending', 'Pending'),
+            ('approved', 'Approved'),
+            ('rejected', 'Rejected'),
+            ('imported', 'Imported'),
+        ],
+        default='pending',
+        db_index=True
+    )
+    ERROR_MESSAGE = models.TextField(
+        null=True,
+        blank=True,
+        help_text="Error details if import failed"
+    )
+    CREATED_RECORD_ID = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="ID of created database record"
+    )
+    CREATED_AT = models.DateTimeField(auto_now_add=True)
+    UPDATED_AT = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['SESSION_ID', 'ROW_NUMBER']
+        indexes = [
+            models.Index(fields=['SESSION_ID', 'STATUS']),
+            models.Index(fields=['MODEL_TYPE', 'STATUS']),
+        ]
+        verbose_name = 'Import Staging'
+        verbose_name_plural = 'Import Staging'
+
+    def __str__(self):
+        return f"Row {self.ROW_NUMBER} - {self.STATUS}"
+
+
+class ImportTemplate(models.Model):
+    """
+    Saved column mapping templates for reuse
+    Allows users to save and quickly load mappings for similar spreadsheets
+    """
+    name = models.CharField(
+        max_length=100,
+        help_text="Template name (e.g., 'Inspection Report v2')"
+    )
+    description = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Detailed description of what this template does"
+    )
+    import_type = models.CharField(
+        max_length=50,
+        choices=[
+            ('inventory', 'Tire Inventory'),
+            ('inspection', 'Tire Inspection'),
+            ('assignment', 'Tire Assignment'),
+            ('maintenance', 'Maintenance Record'),
+            ('custom', 'Custom'),
+        ],
+        db_index=True
+    )
+    mapping_rules = models.JSONField(
+        default=dict,
+        encoder=DjangoJSONEncoder,
+        help_text="Column -> Field mapping rules"
+    )
+    # Example mapping_rules structure:
+    # {
+    #     "Serial": {"model": "Tire", "field": "serial_number", "behavior": "LOOKUP"},
+    #     "TreadDepth": {"model": "TireInspection", "field": "tread_depth", "behavior": "CREATE"},
+    #     "Pressure": {"model": "TireInspection", "field": "pressure", "behavior": "CREATE"},
+    # }
+    
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        help_text="User who created this template"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_public = models.BooleanField(
+        default=False,
+        help_text="Allow other users to use this template"
+    )
+    usage_count = models.IntegerField(
+        default=0,
+        help_text="Number of times this template has been used"
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['import_type', 'is_public']),
+            models.Index(fields=['created_by', '-created_at']),
+        ]
+        unique_together = [('name', 'created_by')]
+        verbose_name = 'Import Template'
+        verbose_name_plural = 'Import Templates'
+
+    def __str__(self):
+        return f"{self.name} ({self.import_type})"
+
+
+class ImportLog(models.Model):
+    """
+    Audit trail for all imports
+    Track what was imported, when, and by whom
+    """
+    session_id = models.CharField(max_length=100, unique=True, db_index=True)
+    import_type = models.CharField(max_length=50)
+    template_used = models.ForeignKey(
+        ImportTemplate,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    imported_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    file_name = models.CharField(max_length=255)
+    total_rows = models.IntegerField()
+    approved_rows = models.IntegerField()
+    imported_rows = models.IntegerField()
+    failed_rows = models.IntegerField()
+    import_duration = models.IntegerField(
+        help_text="Duration in seconds"
+    )
+    stats = models.JSONField(
+        default=dict,
+        encoder=DjangoJSONEncoder,
+        help_text="Detailed statistics (records created, linked, etc.)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['import_type', '-created_at']),
+            models.Index(fields=['imported_by', '-created_at']),
+        ]
+        verbose_name = 'Import Log'
+        verbose_name_plural = 'Import Logs'
+
+    def __str__(self):
+        return f"{self.import_type} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
