@@ -1,291 +1,366 @@
 {% extends 'base/base.html' %}
 
-{% block title %}Work Orders - URES System{% endblock %}
+{% block title %}Work Orders Hub - URES System{% endblock %}
 
-{% block page_title %}All Work Orders{% endblock %}
+{% block page_title %}Work Orders Hub{% endblock %}
 
 {% block page_actions %}
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
-        + Add Work Orders
-    </button>
+<button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#createModal">
+    <i class="bi bi-plus-circle"></i> Add New Work Order
+</button>
 {% endblock %}
 
 {% block content %}
-<div class="row mb-4">
+<div class="container-fluid">
+    <!-- Hub Stats Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Total Orders</h6>
+                    <h3 class="text-primary">{{ work_orders.count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Open Orders</h6>
+                    <h3 class="text-warning">{{ open_count|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Completed</h6>
+                    <h3 class="text-success">{{ completed_count|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Inspections</h6>
+                    <h3 class="text-info">{{ inspection_count|default:0 }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Section -->
+    <div class="row mb-4">
         <div class="col-md-6">
-            <input type="text" placeholder="Search work orders..." id="searchInput" class="form-control" onkeyup="tableSearch()">
+            <div class="input-group">
+                <span class="input-group-text bg-white">🔍</span>
+                <input type="text" id="searchInput" class="form-control" placeholder="Search by order #, employee, vehicle..." onkeyup="filterTable()">
+            </div>
         </div>
         <div class="col-md-6 text-end">
-            <span class="text-muted">
-                Showing {{ work_orders.count }} work order{{ work_orders.count|pluralize }}
-            </span>
+            <button class="btn btn-outline-secondary" onclick="resetFilters()">Reset Filters</button>
         </div>
     </div>
 
-    <!-- Work Orders Table -->
-    <div class="table-responsive">
-        <table class="table table-striped table-hover">
-            <thead class="table-dark">
-                <tr>
-                    <th>Work Order #</th>
-                    <th>Assigned To</th>
-                    <th>Date Created</th>
-                    <th>Vehicle</th>
-                    <th>Current Odometer</th>
-                    <th>Shift Type</th>
-                    <th>Status</th>
-                    <th>Cost</th>
-                    <th style="text-align:center;">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for work_order in work_orders %}
-                    <tr id="row-{{ work_order.id }}">
-                        <td><strong>{{ work_order.work_order_number }}</strong></td>
-                        <td>{{ work_order.assigned_to }}</td>
-                        <td>{{ work_order.date_created|date:"F j, Y"  }}</td>
-                        <td>{{ work_order.vehicle }}</td>
-                        <td>{{ work_order.current_odometer }}</td>
-                        <td>{{ work_order.shift_type }}</td>
-                        <td>{{ work_order.status }}</td>
-                        {% if work_order.cost != 0 %}
-                            <td>{{ work_order.cost }}</td>
-                        {% endif %}
-                        {% if work_order.cost == 0 %}
-                            <td>Not assigned</td>
-                        {% endif %}
-                        <td style="text-align:left;">
-                           <!-- Edit Button -->
-                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal-{{ work_order.id }}">
-                                ✏️ Edit
-                            </button>
-
-                            <!-- Details Button -->
-                            <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#detailsModal-{{ work_order.id }}">
-                                👁️ Details
-                            </button>
-                            
-                            <!-- Delete Button -->
-                            <form method="post" action="{% url 'work_order_delete' work_order.id %}" style="display:inline;">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirmDelete('Are you sure you want to delete work order {{ work_order.work_order_number }}?')">
-                                    🗑️ Delete
-                                </button>
-                            </form>
-                            {% if work_order.shift_type == "INSPECTION" and work_order.status == "OPENED" %}
-                                <!-- Bulk Tire Inspection Button -->
-                                <button class="btn btn-sm btn-warning" 
-                                        onclick="openBulkTireModal(
-                                            '{{ work_order.id }}', 
-                                            '{{ work_order.assigned_to.id }}', 
-                                            '{{ work_order.current_odometer }}',
-                                            '{{ work_order.vehicle.id }}',
-                                            '{{ work_order.assigned_to.first_name }} {{ work_order.assigned_to.last_name }}',
-                                            '{{ work_order.vehicle.license_plate }}'
-                                        )">
-                                    🛞 Bulk Inspection
-                                </button>
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center text-muted py-4">
-                            No work orders found. <a href="#" data-bs-toggle="modal" data-bs-target="#createModal">Add the first work order</a>
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Create Work Order Modal -->
-    <div class="modal fade" id="createModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <form method="post" action="{% url 'work_order_create' %}">
-                    {% csrf_token %}
-                    <div class="modal-header">
-                        <h5 class="modal-title">Add New Work Order</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <!-- Work Orders Hub Grid -->
+    <div class="row" id="workOrdersContainer">
+        {% if work_orders %}
+            {% for work_order in work_orders %}
+            <div class="col-md-6 col-lg-4 mb-4 work-order-card" data-work-id="{{ work_order.id }}" data-status="{{ work_order.status }}" data-shift="{{ work_order.shift_type }}">
+                <div class="card h-100 border-0 shadow-sm hover-shadow">
+                    <!-- Card Header with Status Badge -->
+                    <div class="card-header bg-light border-bottom d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0 fw-bold">{{ work_order.work_order_number }}</h5>
+                            <small class="text-muted">Created {{ work_order.date_created|date:"M d, Y" }}</small>
+                        </div>
+                        <span class="badge {% if work_order.status == 'OPENED' %}bg-warning{% elif work_order.status == 'PENDING' %}bg-info{% elif work_order.status == 'COMPLETED' %}bg-success{% else %}bg-secondary{% endif %}">
+                            {{ work_order.status }}
+                        </span>
                     </div>
-                    <div class="modal-body">
+
+                    <!-- Card Body with Details -->
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <small class="text-muted d-block">Assigned To</small>
+                            <p class="mb-0"><strong>{{ work_order.assigned_to.first_name }} {{ work_order.assigned_to.last_name }}</strong></p>
+                        </div>
+
+                        <div class="mb-3">
+                            <small class="text-muted d-block">Vehicle</small>
+                            <p class="mb-0"><strong>{{ work_order.vehicle.license_plate }}</strong> ({{ work_order.vehicle.make }})</p>
+                        </div>
+
                         <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Work Order #</label>
-                                    <input type="text" name="work_order_number" class="form-control" value="{{ work_order.work_order_number }}" required>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label">Assigned To</label>
-                                    <div class="input-group">
-                                        <select name="assigned_to" id="assignedToSelect" class="form-select" required onchange="updateEmployeeDetails()">
-                                            <option value="">Select an employee</option>
-                                            {% for employee in employees %}
-                                                <option value="{{ employee.id }}" data-employee-id="{{ employee.id }}">{{ employee.first_name }}  {{ employee.last_name }}</option>
-                                            {% endfor %}
-                                        </select>
-                                        <button type="button" class="btn btn-outline-info" onclick="showEmployeeDetails()" id="employeeDetailsBtn" disabled>
-                                            👁️ Details
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label class="form-label">Date Created</label>
-                                    <input type="date" id="DateField" name="date_created" class="form-control" required>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label class="form-label">Vehicle</label>
-                                    <div class="input-group">
-                                        <select name="vehicle" id="vehicleSelect" class="form-select" required onchange="updateVehicleDetails()">
-                                            <option value="">Select a vehicle</option>
-                                            {% for vehicle in vehicles %}
-                                                <option value="{{ vehicle.id }}" data-vehicle-id="{{ vehicle.id }}">{{ vehicle.license_plate }}</option>
-                                            {% endfor %}
-                                        </select>
-                                        <button type="button" class="btn btn-outline-info" onclick="showVehicleDetails()" id="vehicleDetailsBtn" disabled>
-                                            👁️ Details
-                                        </button>
-                                    </div>
-                                </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block">Odometer</small>
+                                <p class="mb-0"><strong>{{ work_order.current_odometer }} km</strong></p>
                             </div>
-                            
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Current Odometer</label>
-                                    <input type="number" name="current_odometer" class="form-control" required>
-                                </div>
-
-                                <div class="mb-3">
-                                <label>Shift Type</label>
-                                <select name="shift_type" class="form-select" required>
-                                    <option value="INSPECTION" {% if work_order.shift_type == "INSPECTION" %}selected{% endif %}>Inspection</option>
-                                    <option value="ASSIGNMENT" {% if work_order.shift_type == "ASSIGNMENT" %}selected{% endif %}>Assignment</option>
-                                    
-                                </select>
+                            <div class="col-6">
+                                <small class="text-muted d-block">Type</small>
+                                <p class="mb-0"><strong>{{ work_order.shift_type }}</strong></p>
                             </div>
+                        </div>
 
-                                <div class="mb-3">
-                                <label>Status</label>
-                                <select name="status" class="form-select" required>
-                                    <option value="OPENED" {% if work_order.status == "OPENED" %}selected{% endif %}>Opened</option>
-                                    <option value="PENDING" {% if work_order.status == "PENDING" %}selected{% endif %}>Pending</option>
-                                    <option value="COMPLETED" {% if work_order.status == "COMPLETED" %}selected{% endif %}>Completed</option>
-                                    <option value="CLOSED" {% if work_order.status == "CLOSED" %}selected{% endif %}>Closed</option>
-                                </select>
-                            </div>
+                        <hr class="my-3">
 
-                                <!-- <div class="mb-3">
-                                    <label class="form-label">Cost</label>
-                                    <input type="number" step="0.01" name="cost" class="form-control" required>
-                                </div> -->
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted d-block">Cost</small>
+                                <p class="mb-0"><strong>
+                                    {% if work_order.cost != 0 %}
+                                        ${{ work_order.cost }}
+                                    {% else %}
+                                        <span class="text-warning">Not assigned</span>
+                                    {% endif %}
+                                </strong></p>
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-success">Create Work Order</button>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
 
-    <!-- Employee Details Popup -->
-    <div class="modal fade" id="employeeDetailsModal" tabindex="-1">
-        <div class="modal-dialog modal-sm">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Employee Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body" id="employeeDetailsContent">
-                    <!-- Employee details will be loaded here -->
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Vehicle Details Popup -->
-    <div class="modal fade" id="vehicleDetailsModal" tabindex="-1">
-        <div class="modal-dialog modal-sm">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Vehicle Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body" id="vehicleDetailsContent">
-                    <!-- Vehicle details will be loaded here -->
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit and Details Modals for each work order -->
-    {% for work_order in work_orders %}
-        <!-- Edit Modal -->
-        <div class="modal fade" id="editModal-{{ work_order.id }}">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <form method="post" action="{% url 'work_order_update' work_order.id %}">
-                        {% csrf_token %}
-                        <div class="modal-header">
-                            <h5 class="modal-title">Update Work Order</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <!-- Card Footer with Actions -->
+                    <div class="card-footer bg-light border-top">
+                        <div class="d-grid gap-2">
+                            <!-- View Details Button -->
+                            <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#detailsModal-{{ work_order.id }}">
+                                <i class="bi bi-eye"></i> View Full Details
+                            </button>
                         </div>
-                        <div class="modal-body">
+
+                        <!-- Quick Action Buttons -->
+                        <div class="mt-2 d-flex gap-2 flex-wrap">
+                            <!-- Edit Button -->
+                            <button type="button" class="btn btn-outline-warning btn-sm flex-fill" data-bs-toggle="modal" data-bs-target="#editModal-{{ work_order.id }}">
+                                <i class="bi bi-pencil"></i> Edit
+                            </button>
+
+                            <!-- Delete Button -->
+                            <button type="button" class="btn btn-outline-danger btn-sm flex-fill" onclick="deleteWorkOrder('{{ work_order.id }}', '{{ work_order.work_order_number }}')">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                        </div>
+
+                        <!-- Bulk Inspection Button (conditional) -->
+                        {% if work_order.shift_type == "INSPECTION" and work_order.status == "OPENED" %}
+                        <button type="button" class="btn btn-success btn-sm w-100 mt-2" 
+                            onclick="openBulkTireModal('{{ work_order.id }}', '{{ work_order.assigned_to.id }}', '{{ work_order.current_odometer }}', '{{ work_order.vehicle.id }}', '{{ work_order.assigned_to.first_name }} {{ work_order.assigned_to.last_name }}', '{{ work_order.vehicle.license_plate }}')">
+                            <i class="bi bi-check-circle"></i> Bulk Tire Inspection
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="col-12">
+            <div class="alert alert-info text-center py-5">
+                <h5>No work orders yet</h5>
+                <p class="mb-3">Start by creating your first work order to begin managing your maintenance operations.</p>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+                    <i class="bi bi-plus-circle"></i> Create First Work Order
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ========================= MODALS ========================= -->
+
+<!-- Create Work Order Modal -->
+<div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{% url 'work_order_create' %}">
+                {% csrf_token %}
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Create New Work Order</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
                             <div class="mb-3">
-                                <label>Work Order #</label>
+                                <label class="form-label">Work Order #</label>
+                                <input type="text" name="work_order_number" class="form-control" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Assigned To <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <select name="assigned_to" id="assignedToSelect" class="form-select" required onchange="updateEmployeeDetails()">
+                                        <option value="">Select an employee</option>
+                                        {% for employee in employees %}
+                                        <option value="{{ employee.id }}">{{ employee.first_name }} {{ employee.last_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="button" class="btn btn-outline-info" onclick="showEmployeeDetails()" id="employeeDetailsBtn" disabled>
+                                        <i class="bi bi-info-circle"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Date Created</label>
+                                <input type="date" id="DateField" name="date_created" class="form-control" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Vehicle <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <select name="vehicle" id="vehicleSelect" class="form-select" required onchange="updateVehicleDetails()">
+                                        <option value="">Select a vehicle</option>
+                                        {% for vehicle in vehicles %}
+                                        <option value="{{ vehicle.id }}">{{ vehicle.license_plate }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="button" class="btn btn-outline-info" onclick="showVehicleDetails()" id="vehicleDetailsBtn" disabled>
+                                        <i class="bi bi-info-circle"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Current Odometer</label>
+                                <input type="number" name="current_odometer" class="form-control" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Shift Type <span class="text-danger">*</span></label>
+                                <select name="shift_type" class="form-select" required>
+                                    <option value="INSPECTION">Inspection</option>
+                                    <option value="ASSIGNMENT">Assignment</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Status <span class="text-danger">*</span></label>
+                                <select name="status" class="form-select" required>
+                                    <option value="OPENED" selected>Opened</option>
+                                    <option value="PENDING">Pending</option>
+                                    <option value="COMPLETED">Completed</option>
+                                    <option value="CLOSED">Closed</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> Create Work Order
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Employee Details Modal -->
+<div class="modal fade" id="employeeDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title"><i class="bi bi-person"></i> Employee Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="employeeDetailsContent">
+                <!-- Populated by JavaScript -->
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Vehicle Details Modal -->
+<div class="modal fade" id="vehicleDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title"><i class="bi bi-truck"></i> Vehicle Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="vehicleDetailsContent">
+                <!-- Populated by JavaScript -->
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit and Details Modals for each work order -->
+{% for work_order in work_orders %}
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal-{{ work_order.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{% url 'work_order_update' work_order.id %}">
+                {% csrf_token %}
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title"><i class="bi bi-pencil"></i> Edit Work Order #{{ work_order.work_order_number }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Work Order #</label>
                                 <input type="text" name="work_order_number" class="form-control" value="{{ work_order.work_order_number }}" required>
                             </div>
 
                             <div class="mb-3">
-                                <label>Assigned To</label>
+                                <label class="form-label">Assigned To</label>
                                 <select name="assigned_to" class="form-select" required>
                                     {% for employee in employees %}
-                                        <option value="{{ employee.id }}" {% if work_order.assigned_to.id == employee.id %}selected{% endif %}>{{ employee.first_name }} {{ employee.last_name }}</option>
+                                    <option value="{{ employee.id }}" {% if work_order.assigned_to.id == employee.id %}selected{% endif %}>
+                                        {{ employee.first_name }} {{ employee.last_name }}
+                                    </option>
                                     {% endfor %}
                                 </select>
                             </div>
 
                             <div class="mb-3">
-                                <label>Date Created</label>
-                                <input type="text" name="date_created" class="form-control" value="{{ work_order.date_created|date:'F j, Y' }}" required>
+                                <label class="form-label">Date Created</label>
+                                <input type="date" name="date_created" class="form-control" value="{{ work_order.date_created|date:'Y-m-d' }}" required>
                             </div>
+
                             <div class="mb-3">
-                                <label>Vehicle</label>
+                                <label class="form-label">Vehicle</label>
                                 <select name="vehicle" class="form-select" required>
                                     {% for vehicle in vehicles %}
-                                        <option value="{{ vehicle.id }}" {% if work_order.vehicle.id == vehicle.id %}selected{% endif %}>{{ vehicle.license_plate }}</option>
+                                    <option value="{{ vehicle.id }}" {% if work_order.vehicle.id == vehicle.id %}selected{% endif %}>
+                                        {{ vehicle.license_plate }}
+                                    </option>
                                     {% endfor %}
                                 </select>
                             </div>
+                        </div>
 
+                        <div class="col-md-6">
                             <div class="mb-3">
-                                <label>Current Odometer</label>
-                                <input type="text" name="current_odometer" class="form-control" value="{{ work_order.current_odometer }}" required>
+                                <label class="form-label">Current Odometer</label>
+                                <input type="number" name="current_odometer" class="form-control" value="{{ work_order.current_odometer }}" required>
                             </div>
 
                             <div class="mb-3">
-                                <label>Shift Type</label>
+                                <label class="form-label">Shift Type</label>
                                 <select name="shift_type" class="form-select" required>
-                                    <option value="INSPECTION" {% if work_order.shift_type == "INSPECTION" %}selected{% endif %}>Installation</option>
-                                    <option value="ASSIGNMENT" {% if work_order.shift_type == "ASSIGNMENT" %}selected{% endif %}>Removal</option>
-                                    
+                                    <option value="INSPECTION" {% if work_order.shift_type == "INSPECTION" %}selected{% endif %}>Inspection</option>
+                                    <option value="ASSIGNMENT" {% if work_order.shift_type == "ASSIGNMENT" %}selected{% endif %}>Assignment</option>
                                 </select>
                             </div>
 
                             <div class="mb-3">
-                                <label>Status</label>
+                                <label class="form-label">Status</label>
                                 <select name="status" class="form-select" required>
                                     <option value="OPENED" {% if work_order.status == "OPENED" %}selected{% endif %}>Opened</option>
                                     <option value="PENDING" {% if work_order.status == "PENDING" %}selected{% endif %}>Pending</option>
@@ -295,178 +370,281 @@
                             </div>
 
                             <div class="mb-3">
-                                <label>Cost</label>
-                                <input type="text" name="cost" class="form-control" value="{{ work_order.cost }}" required>
+                                <label class="form-label">Cost</label>
+                                <input type="number" step="0.01" name="cost" class="form-control" value="{{ work_order.cost }}" required>
                             </div>
                         </div>
-                        <div class="modal-footer">
-                            <button type="submit" class="btn btn-primary">Update Work Order</button>
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        </div>
-                    </form>
+                    </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Details Modal -->
-        <div class="modal fade" id="detailsModal-{{ work_order.id }}">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Work Order Details - {{ work_order.work_order_number }}</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p><strong>Work Order #:</strong> {{ work_order.work_order_number }}</p>
-                                <p><strong>Assigned To:</strong> {{ work_order.assigned_to }}</p>
-                                <p><strong>Date Created:</strong> {{ work_order.date_created|date:"F j, Y"  }}</p>
-                                <p><strong>Vehicle:</strong> {{ work_order.vehicle }}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <p><strong>Current Odometer:</strong> {{ work_order.current_odometer }}</p>
-                                <p><strong>Shift Type:</strong> {{ work_order.shift_type }}</p>
-                                <p><strong>Status:</strong> {{ work_order.status }}</p>
-                                <p><strong>Cost:</strong> {{ work_order.cost }}</p>
-                            </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Update Work Order
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Details Modal -->
+<div class="modal fade" id="detailsModal-{{ work_order.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-bottom bg-light">
+                <h5 class="modal-title"><i class="bi bi-info-circle"></i> Work Order Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <small class="text-muted">Work Order Number</small>
+                            <p class="mb-0"><strong>{{ work_order.work_order_number }}</strong></p>
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-muted">Assigned To</small>
+                            <p class="mb-0"><strong>{{ work_order.assigned_to.first_name }} {{ work_order.assigned_to.last_name }}</strong></p>
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-muted">Date Created</small>
+                            <p class="mb-0"><strong>{{ work_order.date_created|date:"F j, Y" }}</strong></p>
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-muted">Vehicle</small>
+                            <p class="mb-0"><strong>{{ work_order.vehicle.license_plate }} ({{ work_order.vehicle.make }})</strong></p>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <small class="text-muted">Current Odometer</small>
+                            <p class="mb-0"><strong>{{ work_order.current_odometer }} km</strong></p>
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-muted">Shift Type</small>
+                            <p class="mb-0"><strong>{{ work_order.shift_type }}</strong></p>
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-muted">Status</small>
+                            <p class="mb-0">
+                                <span class="badge {% if work_order.status == 'OPENED' %}bg-warning{% elif work_order.status == 'PENDING' %}bg-info{% elif work_order.status == 'COMPLETED' %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {{ work_order.status }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-muted">Cost</small>
+                            <p class="mb-0">
+                                <strong>
+                                    {% if work_order.cost != 0 %}
+                                        ${{ work_order.cost }}
+                                    {% else %}
+                                        <span class="text-warning">Not assigned</span>
+                                    {% endif %}
+                                </strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="mt-4">
+                    <h6 class="mb-3">Quick Actions</h6>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="button" class="btn btn-warning btn-sm" data-bs-dismiss="modal" onclick="editWorkOrder('{{ work_order.id }}')">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                        {% if work_order.shift_type == "INSPECTION" and work_order.status == "OPENED" %}
+                        <button type="button" class="btn btn-success btn-sm" 
+                            onclick="openBulkTireModal('{{ work_order.id }}', '{{ work_order.assigned_to.id }}', '{{ work_order.current_odometer }}', '{{ work_order.vehicle.id }}', '{{ work_order.assigned_to.first_name }} {{ work_order.assigned_to.last_name }}', '{{ work_order.vehicle.license_plate }}')">
+                            <i class="bi bi-check-circle"></i> Bulk Tire Inspection
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
             </div>
+
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
         </div>
-    {% endfor %}
+    </div>
+</div>
+
+{% endfor %}
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .hover-shadow {
+        transition: box-shadow 0.3s ease, transform 0.3s ease;
+    }
+    
+    .hover-shadow:hover {
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15) !important;
+        transform: translateY(-2px);
+    }
+
+    .work-order-card {
+        transition: all 0.3s ease;
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+
+    .badge {
+        font-size: 0.85rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .text-muted {
+        font-size: 0.85rem;
+    }
+
+    #workOrdersContainer {
+        min-height: 400px;
+    }
+</style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    // Store employee and vehicle data
-    const employeeData = {
-        {% for employee in employees %}
-            "{{ employee.id }}": {
-                firstName: "{{ employee.first_name }}",
-                lastName: "{{ employee.last_name }}",
-                position: "{{ employee.position }}",
-                contactNumber: "{{ employee.contact_number }}",
-                email: "{{ employee.email }}",
-                employmentCode: "{{ employee.employment_code }}"
-            },
-        {% endfor %}
-    };
+// Store employee and vehicle data
+const employeeData = {
+    {% for employee in employees %}
+    "{{ employee.id }}": {
+        firstName: "{{ employee.first_name }}",
+        lastName: "{{ employee.last_name }}",
+        position: "{{ employee.position }}",
+        contactNumber: "{{ employee.contact_number }}",
+        email: "{{ employee.email }}",
+        employmentCode: "{{ employee.employment_code }}"
+    },
+    {% endfor %}
+};
 
-    const vehicleData = {
-        {% for vehicle in vehicles %}
-            "{{ vehicle.id }}": {
-                licensePlate: "{{ vehicle.license_plate }}",
-                make: "{{ vehicle.make }}",
-                year: "{{ vehicle.year }}",
-                vehicleType: "{{ vehicle.vehicle_type }}",
-                status: "{{ vehicle.status }}",
-                tireConfiguration: "{{ vehicle.tire_configuration }}",
-                odometer: "{{ vehicle.odometer }}"
-            },
-        {% endfor %}
-    };
+const vehicleData = {
+    {% for vehicle in vehicles %}
+    "{{ vehicle.id }}": {
+        licensePlate: "{{ vehicle.license_plate }}",
+        make: "{{ vehicle.make }}",
+        year: "{{ vehicle.year }}",
+        vehicleType: "{{ vehicle.vehicle_type }}",
+        status: "{{ vehicle.status }}",
+        tireConfiguration: "{{ vehicle.tire_configuration }}",
+        odometer: "{{ vehicle.odometer }}"
+    },
+    {% endfor %}
+};
 
-    function updateEmployeeDetails() {
-        const select = document.getElementById('assignedToSelect');
-        const button = document.getElementById('employeeDetailsBtn');
-        button.disabled = !select.value;
+// Update employee details button state
+function updateEmployeeDetails() {
+    const select = document.getElementById('assignedToSelect');
+    const button = document.getElementById('employeeDetailsBtn');
+    button.disabled = !select.value;
+}
+
+// Update vehicle details button state
+function updateVehicleDetails() {
+    const select = document.getElementById('vehicleSelect');
+    const button = document.getElementById('vehicleDetailsBtn');
+    button.disabled = !select.value;
+}
+
+// Show employee details modal
+function showEmployeeDetails() {
+    const select = document.getElementById('assignedToSelect');
+    const employeeId = select.value;
+
+    if (employeeId && employeeData[employeeId]) {
+        const employee = employeeData[employeeId];
+        const content = document.getElementById('employeeDetailsContent');
+
+        content.innerHTML = `
+            <p><strong>Name:</strong> ${employee.firstName} ${employee.lastName}</p>
+            <p><strong>Position:</strong> ${employee.position}</p>
+            <p><strong>Employment Code:</strong> ${employee.employmentCode}</p>
+            <p><strong>Contact:</strong> ${employee.contactNumber}</p>
+            <p><strong>Email:</strong> ${employee.email}</p>
+        `;
+
+        const modal = new bootstrap.Modal(document.getElementById('employeeDetailsModal'));
+        modal.show();
     }
+}
 
-    function updateVehicleDetails() {
-        const select = document.getElementById('vehicleSelect');
-        const button = document.getElementById('vehicleDetailsBtn');
-        button.disabled = !select.value;
+// Show vehicle details modal
+function showVehicleDetails() {
+    const select = document.getElementById('vehicleSelect');
+    const vehicleId = select.value;
+
+    if (vehicleId && vehicleData[vehicleId]) {
+        const vehicle = vehicleData[vehicleId];
+        const content = document.getElementById('vehicleDetailsContent');
+
+        content.innerHTML = `
+            <p><strong>License Plate:</strong> ${vehicle.licensePlate}</p>
+            <p><strong>Make/Model:</strong> ${vehicle.make} (${vehicle.year})</p>
+            <p><strong>Type:</strong> ${vehicle.vehicleType}</p>
+            <p><strong>Status:</strong> ${vehicle.status}</p>
+            <p><strong>Tire Config:</strong> ${vehicle.tireConfiguration}</p>
+            <p><strong>Odometer:</strong> ${vehicle.odometer} km</p>
+        `;
+
+        const modal = new bootstrap.Modal(document.getElementById('vehicleDetailsModal'));
+        modal.show();
     }
+}
 
-    function showEmployeeDetails() {
-        const select = document.getElementById('assignedToSelect');
-        const employeeId = select.value;
-        
-        if (employeeId && employeeData[employeeId]) {
-            const employee = employeeData[employeeId];
-            const content = document.getElementById('employeeDetailsContent');
-            
-            content.innerHTML = `
-                <p><strong>Name:</strong> ${employee.firstName} ${employee.lastName}</p>
-                <p><strong>Position:</strong> ${employee.position}</p>
-                <p><strong>Employment Code:</strong> ${employee.employmentCode}</p>
-                <p><strong>Contact:</strong> ${employee.contactNumber}</p>
-                <p><strong>Email:</strong> ${employee.email}</p>
-            `;
-            
-            const modal = new bootstrap.Modal(document.getElementById('employeeDetailsModal'));
-            modal.show();
-        }
-    }
+// Filter work orders based on search input
+function filterTable() {
+    const searchInput = document.getElementById('searchInput').value.toUpperCase();
+    const cards = document.querySelectorAll('.work-order-card');
 
-    function showVehicleDetails() {
-        const select = document.getElementById('vehicleSelect');
-        const vehicleId = select.value;
-        
-        if (vehicleId && vehicleData[vehicleId]) {
-            const vehicle = vehicleData[vehicleId];
-            const content = document.getElementById('vehicleDetailsContent');
-            
-            content.innerHTML = `
-                <p><strong>License Plate:</strong> ${vehicle.licensePlate}</p>
-                <p><strong>Make/Model:</strong> ${vehicle.make} (${vehicle.year})</p>
-                <p><strong>Type:</strong> ${vehicle.vehicleType}</p>
-                <p><strong>Status:</strong> ${vehicle.status}</p>
-                <p><strong>Tire Config:</strong> ${vehicle.tireConfiguration}</p>
-                <p><strong>Odometer:</strong> ${vehicle.odometer} km</p>
-            `;
-            
-            const modal = new bootstrap.Modal(document.getElementById('vehicleDetailsModal'));
-            modal.show();
-        }
-    }
-
-    function tableSearch() {
-        let input = document.getElementById("searchInput");
-        let filter = input.value.toUpperCase();
-        let table = document.getElementsByClassName("table")[0];
-        let tr = table.getElementsByTagName("tr");
-
-        for (let i = 0; i < tr.length; i++) {
-            let td = tr[i].getElementsByTagName("td")[0];
-            if (td) {
-                let txtValue = td.textContent || td.innerText;
-                if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                    tr[i].style.display = "";
-                } else {
-                    tr[i].style.display = "none";
-                }
-            }
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        // Check if URL has ?create=true parameter
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('create') === 'true') {
-            // Auto-open the create modal
-            const createModal = new bootstrap.Modal(document.getElementById('createModal'));
-            createModal.show();
-            
-            // Clean URL (remove the parameter without refreshing)
-            const newUrl = window.location.pathname;
-            window.history.replaceState({}, document.title, newUrl);
-        }
-        
-        // Initialize button states
-        updateEmployeeDetails();
-        updateVehicleDetails();
+    cards.forEach(card => {
+        const text = card.textContent.toUpperCase();
+        card.style.display = text.includes(searchInput) ? '' : 'none';
     });
+}
 
-    document.getElementById('DateField').valueAsDate = new Date();
+// Reset all filters
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    filterTable();
+}
 
-    function openBulkTireModal(workOrderId, inspectorId, odometer, vehicleId, inspectorName, vehicleLicense) {
-    // Store the data in sessionStorage to pass to the tire inspections page
+// Delete work order with confirmation
+function deleteWorkOrder(workOrderId, workOrderNumber) {
+    if (confirm(`Are you sure you want to delete work order ${workOrderNumber}?`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/work-orders/${workOrderId}/delete/`;
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfToken) {
+            form.appendChild(csrfToken.cloneNode(true));
+        }
+        
+        form.style.display = 'none';
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Edit work order - open edit modal
+function editWorkOrder(workOrderId) {
+    const editModal = new bootstrap.Modal(document.getElementById(`editModal-${workOrderId}`));
+    editModal.show();
+}
+
+// Open bulk tire inspection modal
+function openBulkTireModal(workOrderId, inspectorId, odometer, vehicleId, inspectorName, vehicleLicense) {
     sessionStorage.setItem('bulkWorkOrderData', JSON.stringify({
         work_order_id: workOrderId,
         inspector_id: inspectorId,
@@ -475,9 +653,20 @@
         inspector_name: inspectorName,
         vehicle_license: vehicleLicense
     }));
-    
-    // Navigate to tire inspections page with the parameter to open bulk modal
-    window.location.href = "{% url 'tire_inspections_list' %}?open_bulk_modal=true";
+
+    // Navigate to bulk tire update endpoint
+    window.location.href = "{% url 'tire_inspections_bulk' %}?open_bulk_modal=true";
+
 }
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Set date field to today
+    document.getElementById('DateField').valueAsDate = new Date();
+    
+    // Initialize button states
+    updateEmployeeDetails();
+    updateVehicleDetails();
+});
 </script>
 {% endblock %}

@@ -1,0 +1,346 @@
+{% extends 'base/base.html' %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="import-container">
+    
+    <!-- Progress Bar -->
+    <div class="progress-bar">
+        <div class="progress-step completed">
+            <div class="step-number">1</div>
+            <div class="step-label">Upload</div>
+        </div>
+        <div class="progress-step completed">
+            <div class="step-number">2</div>
+            <div class="step-label">Mapping</div>
+        </div>
+        <div class="progress-step completed">
+            <div class="step-number">3</div>
+            <div class="step-label">Preview</div>
+        </div>
+        <div class="progress-step active">
+            <div class="step-number">4</div>
+            <div class="step-label">Confirm</div>
+        </div>
+        <div class="progress-step">
+            <div class="step-number">5</div>
+            <div class="step-label">Success</div>
+        </div>
+    </div>
+
+
+    <!-- Title -->
+    <h1>Review & Confirm Import</h1>
+    <p class="subtitle">Review the {{ selected_rows_count }} rows that will be imported</p>
+
+    <!-- Summary Card -->
+    <div class="summary-card">
+        <div class="summary-row">
+            <span class="summary-label">File:</span>
+            <span class="summary-value">{{ file_name }}</span>
+        </div>
+        <div class="summary-row">
+            <span class="summary-label">Import Type:</span>
+            <span class="summary-value">{{ import_type|title }}</span>
+        </div>
+        <div class="summary-row">
+            <span class="summary-label">Total Rows in File:</span>
+            <span class="summary-value">{{ total_rows }}</span>
+        </div>
+        <div class="summary-row">
+            <span class="summary-label">Rows to Import:</span>
+            <span class="summary-value highlight">{{ selected_rows_count }}</span>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="table-container">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th class="row-num">Row</th>
+                    {% for header in headers %}
+                        <th>{{ header }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row_data in selected_rows_data %}
+                    <tr>
+                        <td class="row-num">{{ forloop.counter }}</td>
+                        {% for header in headers %}
+                            <td>{{ row_data|dict_lookup:header }}</td>
+                        {% endfor %}
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="{{ headers|length|add:1 }}" class="empty-message">
+                            No rows selected. Please go back to preview.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Hidden Fields for Import -->
+    <form method="POST" id="confirm-form">
+        {% csrf_token %}
+        
+        <!-- Pass selected row indices to import view -->
+        {% for row_index in selected_rows_indices %}
+            <input type="hidden" name="selected_rows" value="{{ row_index }}">
+        {% endfor %}
+
+        <!-- Action Buttons -->
+        <div class="button-group">
+            <a href="{% url 'import_excel_preview' %}" class="btn btn-secondary">
+                ← Back to Preview
+            </a>
+            <button type="submit" class="btn btn-primary">
+                ✓ Import {{ selected_rows_count }} Rows
+            </button>
+        </div>
+    </form>
+
+</div>
+
+<style>
+    .import-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 30px;
+    }
+
+    .progress-bar {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+}
+
+    .progress-step {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+    .progress-step.completed {
+        opacity: 1;
+    }
+
+    .progress-step.active {
+        opacity: 1;
+        font-weight: bold;
+    }
+
+    .step-number {
+        width: 40px;
+        height: 40px;
+        background: #e0e0e0;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 8px;
+        font-weight: bold;
+    }
+
+    .progress-step.completed .step-number {
+        background: #4caf50;
+        color: white;
+    }
+
+    .progress-step.active .step-number {
+        background: #2180a0;
+        color: white;
+    }
+
+    .step-label {
+        font-size: 13px;
+        font-weight: 500;
+    }
+
+    h1 {
+        margin-top: 16px;
+        font-size: 28px;
+        margin-bottom: 8px;
+        color: #333;
+    }
+
+    .subtitle {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 30px;
+    }
+
+    .summary-card {
+        background: #f9f9f9;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 30px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+    }
+
+    .summary-label {
+        font-weight: 600;
+        color: #666;
+        min-width: 150px;
+    }
+
+    .summary-value {
+        color: #333;
+        text-align: right;
+    }
+
+    .summary-value.highlight {
+        color: #2180a0;
+        font-weight: bold;
+    }
+
+    .table-container {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin-bottom: 30px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .table thead {
+        background: #f5f5f5;
+        border-bottom: 2px solid #e0e0e0;
+    }
+
+    .table th {
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        color: #333;
+        font-size: 13px;
+    }
+
+    .table td {
+        padding: 12px;
+        border-bottom: 1px solid #e0e0e0;
+        font-size: 13px;
+        color: #333;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .row-num {
+        background: #f9f9f9;
+        width: 50px;
+        text-align: center;
+        font-weight: 500;
+    }
+
+    .table tbody tr:hover {
+        background: #f9f9f9;
+    }
+
+    .empty-message {
+        text-align: center;
+        padding: 30px !important;
+        color: #999;
+        font-style: italic;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 15px;
+        justify-content: flex-end;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+        background: #2180a0;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1a5f7a;
+    }
+
+    .btn-secondary {
+        background: #e0e0e0;
+        color: #333;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-secondary:hover {
+        background: #d0d0d0;
+    }
+
+    @media (max-width: 768px) {
+        .import-container {
+            padding: 20px;
+        }
+
+        .summary-card {
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        .summary-row {
+            flex-direction: column;
+        }
+
+        .summary-label {
+            min-width: auto;
+        }
+
+        .summary-value {
+            text-align: left;
+        }
+
+        .button-group {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+            text-align: center;
+        }
+
+        .progress-step {
+            min-width: 60px;
+        }
+
+        .step-label {
+            font-size: 11px;
+        }
+    }
+</style>
+{% endblock %}

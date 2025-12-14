@@ -1,0 +1,602 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="import-container">
+  <!-- Header Section -->
+  <div class="import-header">
+    <div class="header-content">
+      <h1 class="page-title">Upload Your Data</h1>
+      <p class="page-subtitle">Step 1 of 5 - Select a file to import</p>
+    </div>
+  </div>
+
+  <!-- Progress Bar -->
+  <div class="progress-section">
+    <div class="progress-bar-container">
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: 20%;"></div>
+      </div>
+      <div class="progress-labels">
+        <div class="progress-step active">
+          <span class="step-number">1</span>
+          <span class="step-label">Upload</span>
+        </div>
+        <div class="progress-step">
+          <span class="step-number">2</span>
+          <span class="step-label">Mapping</span>
+        </div>
+        <div class="progress-step">
+          <span class="step-number">3</span>
+          <span class="step-label">Preview</span>
+        </div>
+        <div class="progress-step">
+          <span class="step-number">4</span>
+          <span class="step-label">Confirm</span>
+        </div>
+        <div class="progress-step">
+          <span class="step-number">5</span>
+          <span class="step-label">Success</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload Card -->
+  <div class="upload-card">
+    <div class="upload-content">
+      <form method="POST" enctype="multipart/form-data" id="uploadForm">
+        {% csrf_token %}
+        
+        <!-- Import Type Selection -->
+        <div class="form-section">
+          <h3 class="form-title">What type of data are you importing?</h3>
+          <div class="import-type-grid">
+            <label class="type-option">
+              <input type="radio" name="import_type" value="tire" required>
+              <span class="type-box">
+                <span class="type-icon">🛞</span>
+                <span class="type-name">Tires</span>
+              </span>
+            </label>
+            <label class="type-option">
+              <input type="radio" name="import_type" value="inspection" required>
+              <span class="type-box">
+                <span class="type-icon">📋</span>
+                <span class="type-name">Inspections</span>
+              </span>
+            </label>
+            <label class="type-option">
+              <input type="radio" name="import_type" value="assignment" required>
+              <span class="type-box">
+                <span class="type-icon">🔗</span>
+                <span class="type-name">Assignments</span>
+              </span>
+            </label>
+            <label class="type-option">
+              <input type="radio" name="import_type" value="maintenance" required>
+              <span class="type-box">
+                <span class="type-icon">📝</span>
+                <span class="type-name">Maintenance</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- File Upload -->
+        <div class="form-section">
+          <h3 class="form-title">Choose your file</h3>
+          <p class="form-subtitle">Supported formats: Excel (.xlsx, .xls), CSV (.csv)</p>
+          
+          <div class="file-input-wrapper">
+            <input 
+              type="file" 
+              id="fileInput" 
+              name="file" 
+              accept=".xlsx,.xls,.csv"
+              required
+              class="file-input"
+            >
+            <label for="fileInput" class="file-label">
+              <span class="file-icon">📁</span>
+              <span class="file-text">
+                <span class="file-text-main">Click to select file</span>
+                <span class="file-text-sub">or drag and drop</span>
+              </span>
+            </label>
+            <div class="file-name" id="fileName"></div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+          <a href="{% url 'menu_page' %}" class="btn btn-secondary">
+            <span class="btn-icon">✕</span> Cancel
+          </a>
+          <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>
+            <span class="btn-icon">→</span> Continue to Mapping
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Info Box -->
+    <div class="info-box">
+      <h4 class="info-title">📌 Tips for success</h4>
+      <ul class="info-list">
+        <li>Make sure your file has headers in the first row</li>
+        <li>Column names should be clear (e.g., "Tire ID", "Tread Depth")</li>
+        <li>Remove any empty rows at the beginning or end</li>
+        <li>All data in the file will be processed</li>
+        <li>You can select which rows to import in the next steps</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<style>
+  :root {
+    --color-primary: #2180a0;
+    --color-primary-dark: #1a6680;
+    --color-secondary: #f5f5f5;
+    --color-text: #333;
+    --color-text-light: #666;
+    --color-border: #e0e0e0;
+    --color-success: #27ae60;
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --radius-sm: 4px;
+    --radius-md: 8px;
+  }
+
+  .import-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+  }
+
+  /* Header */
+  .import-header {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .page-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0 0 var(--spacing-sm) 0;
+  }
+
+  .page-subtitle {
+    font-size: 14px;
+    color: var(--color-text-light);
+    margin: 0;
+  }
+
+  /* Progress Bar */
+  .progress-section {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .progress-bar-container {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .progress-bar {
+    height: 6px;
+    background: var(--color-border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary), #32a9bf);
+    border-radius: var(--radius-sm);
+    transition: width 0.3s ease;
+  }
+
+  .progress-labels {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+  }
+
+  .progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+  }
+
+  .progress-step.active {
+    opacity: 1;
+  }
+
+  .step-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: var(--color-secondary);
+    border: 2px solid var(--color-border);
+    border-radius: 50%;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--color-text-light);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .progress-step.active .step-number {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+  }
+
+  .step-label {
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+  }
+
+  /* Upload Card */
+  .upload-card {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: var(--spacing-lg);
+  }
+
+  .upload-content {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+
+  .form-section {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .form-section:last-of-type {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .form-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0 0 var(--spacing-lg) 0;
+  }
+
+  .form-subtitle {
+    font-size: 13px;
+    color: var(--color-text-light);
+    margin: 0 0 var(--spacing-md) 0;
+  }
+
+  /* Import Type Grid */
+  .import-type-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+  }
+
+  .type-option {
+    cursor: pointer;
+  }
+
+  .type-option input {
+    display: none;
+  }
+
+  .type-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-lg);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: white;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .type-option input:checked + .type-box {
+    border-color: var(--color-primary);
+    background: rgba(33, 128, 160, 0.05);
+    box-shadow: 0 0 0 3px rgba(33, 128, 160, 0.1);
+  }
+
+  .type-option:hover .type-box {
+    border-color: var(--color-primary);
+  }
+
+  .type-icon {
+    font-size: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .type-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  /* File Input */
+  .file-input-wrapper {
+    position: relative;
+    margin-bottom: var(--spacing-md);
+  }
+
+  .file-input {
+    display: none;
+  }
+
+  .file-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-xl);
+    border: 2px dashed var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .file-input-wrapper:hover .file-label {
+    border-color: var(--color-primary);
+    background: rgba(33, 128, 160, 0.03);
+  }
+
+  .file-input:focus + .file-label {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(33, 128, 160, 0.1);
+  }
+
+  .file-icon {
+    font-size: 40px;
+  }
+
+  .file-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xs);
+  }
+
+  .file-text-main {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .file-text-sub {
+    font-size: 12px;
+    color: var(--color-text-light);
+  }
+
+  .file-name {
+    font-size: 13px;
+    color: var(--color-success);
+    font-weight: 500;
+    text-align: center;
+    min-height: 20px;
+  }
+
+  /* Action Buttons */
+  .action-buttons {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: space-between;
+    margin-top: var(--spacing-xl);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    flex: 1;
+  }
+
+  .btn-primary {
+    background: var(--color-primary);
+    color: white;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-primary-dark);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    background: var(--color-secondary);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+  }
+
+  .btn-secondary:hover {
+    background: #f9f9f9;
+  }
+
+  .btn-icon {
+    font-size: 16px;
+  }
+
+  /* Info Box */
+  .info-box {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+
+  .info-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0 0 var(--spacing-md) 0;
+  }
+
+  .info-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .info-list li {
+    font-size: 13px;
+    color: var(--color-text-light);
+    margin-bottom: var(--spacing-sm);
+    padding-left: var(--spacing-lg);
+    position: relative;
+  }
+
+  .info-list li:before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: var(--color-success);
+    font-weight: 700;
+  }
+
+  .info-list li:last-child {
+    margin-bottom: 0;
+  }
+
+  @media (max-width: 768px) {
+    .import-container {
+      padding: var(--spacing-md);
+    }
+
+    .upload-card {
+      grid-template-columns: 1fr;
+    }
+
+    .import-type-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .action-buttons {
+      flex-direction: column;
+    }
+
+    .progress-labels {
+      gap: var(--spacing-sm);
+    }
+
+    .step-number {
+      width: 28px;
+      height: 28px;
+      font-size: 12px;
+    }
+
+    .step-label {
+      font-size: 10px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .import-type-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .file-label {
+      padding: var(--spacing-lg);
+    }
+
+    .file-icon {
+      font-size: 32px;
+    }
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('fileInput');
+    const fileName = document.getElementById('fileName');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const importTypeRadios = document.querySelectorAll('input[name="import_type"]');
+
+    // File input handling
+    fileInput.addEventListener('change', function(e) {
+      if (this.files && this.files.length > 0) {
+        fileName.textContent = '✓ ' + this.files[0].name;
+        updateButtonState();
+      } else {
+        fileName.textContent = '';
+        updateButtonState();
+      }
+    });
+
+    // Drag and drop
+    const fileLabel = document.querySelector('.file-label');
+    fileLabel.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      fileLabel.style.borderColor = 'var(--color-primary)';
+      fileLabel.style.background = 'rgba(33, 128, 160, 0.05)';
+    });
+
+    fileLabel.addEventListener('dragleave', function(e) {
+      e.preventDefault();
+      fileLabel.style.borderColor = 'var(--color-border)';
+      fileLabel.style.background = 'var(--color-secondary)';
+    });
+
+    fileLabel.addEventListener('drop', function(e) {
+      e.preventDefault();
+      fileLabel.style.borderColor = 'var(--color-border)';
+      fileLabel.style.background = 'var(--color-secondary)';
+      
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        fileInput.files = e.dataTransfer.files;
+        fileName.textContent = '✓ ' + e.dataTransfer.files[0].name;
+        updateButtonState();
+      }
+    });
+
+    // Import type selection
+    importTypeRadios.forEach(radio => {
+      radio.addEventListener('change', updateButtonState);
+    });
+
+    // Update button state
+    function updateButtonState() {
+      const typeSelected = document.querySelector('input[name="import_type"]:checked');
+      const fileSelected = fileInput.files && fileInput.files.length > 0;
+      
+      uploadBtn.disabled = !typeSelected || !fileSelected;
+    }
+
+    // Initial state
+    updateButtonState();
+  });
+</script>
+{% endblock %}

@@ -1,5 +1,7 @@
 # models.py
 from django.db import models
+from django.contrib.auth.models import User
+from django.core.serializers.json import DjangoJSONEncoder
 
 class TireStatus(models.Model):
     status_name = models.CharField(max_length=50)
@@ -234,3 +236,171 @@ class TireAssignment(models.Model):
 
     def str(self):
         return f"{self.tire.serial_number} - {self.tire_position_to}"
+    
+
+class ImportStaging(models.Model):
+    """
+    Temporary storage for imported rows before database insertion
+    """
+    SESSION_ID = models.CharField(max_length=100, db_index=True)
+    MODEL_TYPE = models.CharField(
+        max_length=50,
+        choices=[
+            ('inventory', 'Tire Inventory'),
+            ('inspection', 'Tire Inspection'),
+            ('assignment', 'Tire Assignment'),
+            ('maintenance', 'Maintenance Record'),
+            ('custom', 'Custom'),
+        ]
+    )
+    ROW_NUMBER = models.IntegerField()
+    DATA = models.JSONField(
+        default=dict,
+        encoder=DjangoJSONEncoder,
+        help_text="Raw row data from spreadsheet"
+    )
+    STATUS = models.CharField(
+        max_length=20,
+        choices=[
+            ('pending', 'Pending'),
+            ('approved', 'Approved'),
+            ('rejected', 'Rejected'),
+            ('imported', 'Imported'),
+        ],
+        default='pending',
+        db_index=True
+    )
+    ERROR_MESSAGE = models.TextField(
+        null=True,
+        blank=True,
+        help_text="Error details if import failed"
+    )
+    CREATED_RECORD_ID = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="ID of created database record"
+    )
+    CREATED_AT = models.DateTimeField(auto_now_add=True)
+    UPDATED_AT = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['SESSION_ID', 'ROW_NUMBER']
+        indexes = [
+            models.Index(fields=['SESSION_ID', 'STATUS']),
+            models.Index(fields=['MODEL_TYPE', 'STATUS']),
+        ]
+        verbose_name = 'Import Staging'
+        verbose_name_plural = 'Import Staging'
+
+    def __str__(self):
+        return f"Row {self.ROW_NUMBER} - {self.STATUS}"
+
+
+class ImportTemplate(models.Model):
+    """
+    Saved column mapping templates for reuse
+    Allows users to save and quickly load mappings for similar spreadsheets
+    """
+    name = models.CharField(
+        max_length=100,
+        help_text="Template name (e.g., 'Inspection Report v2')"
+    )
+    description = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Detailed description of what this template does"
+    )
+    import_type = models.CharField(
+        max_length=50,
+        choices=[
+            ('inventory', 'Tire Inventory'),
+            ('inspection', 'Tire Inspection'),
+            ('assignment', 'Tire Assignment'),
+            ('maintenance', 'Maintenance Record'),
+            ('custom', 'Custom'),
+        ],
+        db_index=True
+    )
+    mapping_rules = models.JSONField(
+        default=dict,
+        encoder=DjangoJSONEncoder,
+        help_text="Column -> Field mapping rules"
+    )
+    # Example mapping_rules structure:
+    # {
+    #     "Serial": {"model": "Tire", "field": "serial_number", "behavior": "LOOKUP"},
+    #     "TreadDepth": {"model": "TireInspection", "field": "tread_depth", "behavior": "CREATE"},
+    #     "Pressure": {"model": "TireInspection", "field": "pressure", "behavior": "CREATE"},
+    # }
+    
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        help_text="User who created this template"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_public = models.BooleanField(
+        default=False,
+        help_text="Allow other users to use this template"
+    )
+    usage_count = models.IntegerField(
+        default=0,
+        help_text="Number of times this template has been used"
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['import_type', 'is_public']),
+            models.Index(fields=['created_by', '-created_at']),
+        ]
+        unique_together = [('name', 'created_by')]
+        verbose_name = 'Import Template'
+        verbose_name_plural = 'Import Templates'
+
+    def __str__(self):
+        return f"{self.name} ({self.import_type})"
+
+
+class ImportLog(models.Model):
+    """
+    Audit trail for all imports
+    Track what was imported, when, and by whom
+    """
+    session_id = models.CharField(max_length=100, unique=True, db_index=True)
+    import_type = models.CharField(max_length=50)
+    template_used = models.ForeignKey(
+        ImportTemplate,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    imported_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    file_name = models.CharField(max_length=255)
+    total_rows = models.IntegerField()
+    approved_rows = models.IntegerField()
+    imported_rows = models.IntegerField()
+    failed_rows = models.IntegerField()
+    import_duration = models.IntegerField(
+        help_text="Duration in seconds"
+    )
+    stats = models.JSONField(
+        default=dict,
+        encoder=DjangoJSONEncoder,
+        help_text="Detailed statistics (records created, linked, etc.)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['import_type', '-created_at']),
+            models.Index(fields=['imported_by', '-created_at']),
+        ]
+        verbose_name = 'Import Log'
+        verbose_name_plural = 'Import Logs'
+
+    def __str__(self):
+        return f"{self.import_type} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
