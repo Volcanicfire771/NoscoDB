@@ -1,10 +1,8 @@
 # models.py
 from django.db import models
-# In your models.py or signals.py
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-
-
+from django.utils import timezone
 
 # 1. Independent models (no foreign keys)
 class TireStatus(models.Model):
@@ -125,14 +123,42 @@ class Tire(models.Model):
     )
     is_scrapped = models.BooleanField(default=False)
     
+    # Optional: Add this field if you want to track last assignment
+    last_assignment = models.ForeignKey(
+        'TireAssignment',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='last_for_tire'
+    )
+    
     def __str__(self):
         return self.serial_number
     
     @property
     def can_be_assigned(self):
         """Check if tire is in a state that allows assignment"""
-        valid_statuses = ['IN_STOCK', 'MOUNTED', 'READY']  # Adjust based on your TireStatus entries
-        return self.status.status_name in valid_statuses and not self.is_scrapped
+        if self.is_scrapped:
+            return False
+        
+        # Get status name safely
+        status_name = self.status.status_name if self.status else ""
+        
+        # Define invalid statuses for assignment
+        invalid_statuses = ['DISCARDED', 'SCRAP', 'SCRAPPED']
+        
+        # Define valid statuses
+        valid_statuses = ['READY', 'MOUNTED', 'ACTIVE', 'IN_STOCK']
+        
+        # Check both invalid and valid lists
+        if status_name in invalid_statuses:
+            return False
+        
+        # If we have valid statuses defined, check against them
+        if valid_statuses:
+            return status_name in valid_statuses
+        
+        return True  # Default to True if no specific valid statuses
 
 # 4. TirePosition (depends on Vehicle, Tire)
 class TirePosition(models.Model):
@@ -256,7 +282,7 @@ class TireAssignment(models.Model):
     tire_position_from = models.ForeignKey(TirePosition, on_delete=models.CASCADE, 
                                     related_name='assignments_from', null=True, blank=True)
     tire_position_to = models.ForeignKey(TirePosition, on_delete=models.CASCADE, 
-                                  related_name='assignments_to')
+                                  related_name='assignments_to', null=True, blank=True)  # Allow null for discard
     assignment_date = models.DateField()
     removal_date = models.DateField(null=True, blank=True)
     reason_for_removal = models.TextField(blank=True)
@@ -266,26 +292,58 @@ class TireAssignment(models.Model):
                                 null=True, blank=True, related_name='assignments')
     notes = models.TextField(blank=True)
     date_created = models.DateTimeField(auto_now_add=True)
+    is_discard_operation = models.BooleanField(default=False)
 
+    def is_discard(self):
+        """Check if this assignment is a discard operation"""
+        return self.is_discard_operation or self.tire_position_to is None
+    
     def __str__(self):
+        if self.is_discard():
+            return f"{self.tire.serial_number} - DISCARDED"
         return f"{self.tire.serial_number} - {self.tire_position_to}"
     
+    def save(self, *args, **kwargs):
+        # Set assignment date to today if not provided
+        if not self.assignment_date:
+            self.assignment_date = timezone.now().date()
+        super().save(*args, **kwargs)
+
+# SIGNALS - Updated to handle discard operations
 @receiver(post_save, sender=TireAssignment)
 def update_related_models_on_assignment(sender, instance, created, **kwargs):
     """Automatically update related models when assignment is created/updated"""
-    if created:  # Only for new assignments
+    if created:
         tire = instance.tire
-        to_position = instance.tire_position_to
         
-        # Update tire's current position
-        tire.current_position = to_position
-        tire.current_vehicle = to_position.vehicle
-        tire.last_assignment = instance
-        tire.save()
-        
-        # Update any inspections on this tire at the old position
-        if instance.tire_position_from:
-            TireInspection.objects.filter(
-                tire=tire,
-                position=instance.tire_position_from
-            ).update(position=to_position, work_order=instance.work_order)
+        if instance.is_discard():
+            # ====== DISCARD OPERATION ======
+            # DON'T update current_position for discard (should be None)
+            # DON'T update inspections for discard
+            
+            # But we should update the tire's last_assignment
+            if hasattr(tire, 'last_assignment'):
+                tire.last_assignment = instance
+                tire.save()
+                
+        else:
+            # ====== NORMAL ASSIGNMENT ======
+            to_position = instance.tire_position_to
+            
+            # Update tire's current position only if to_position exists
+            if to_position:
+                tire.current_position = to_position
+                tire.current_vehicle = to_position.vehicle
+                
+                # Update last_assignment if field exists
+                if hasattr(tire, 'last_assignment'):
+                    tire.last_assignment = instance
+                
+                tire.save()
+            
+            # Update any inspections on this tire at the old position
+            if instance.tire_position_from:
+                TireInspection.objects.filter(
+                    tire=tire,
+                    position=instance.tire_position_from
+                ).update(position=to_position, work_order=instance.work_order)

@@ -88,12 +88,11 @@ urlpatterns = [
     path('tire-patterns/delete/<int:id>/', tire_patterns_delete, name='tire_patterns_delete'),
 
     # Tire Assignment URLS
-    path('tire-assignment/', tire_assignment_list, name='tire_assignment_list'),
-    path('tire-assignment/create/', tire_assignment_create, name='tire_assignment_create'),
-    path('tire-assignment/update/<int:id>/', tire_assignment_update, name='tire_assignment_update'),
-    path('tire-assignment/delete/<int:id>/', tire_assignment_delete, name='tire_assignment_delete'),
-
-    # Tire Assignment URLS
+     path('tire-assignments/', tire_assignment_list, name='tire_assignment_list'),
+    path('tire-assignments/create/', tire_assignment_create, name='tire_assignment_create'),
+    path('tire-assignments/<int:id>/update/', tire_assignment_update, name='tire_assignment_update'),
+    path('tire-assignments/<int:id>/delete/', tire_assignment_delete, name='tire_assignment_delete'),
+    # Tire Wear URLS
     path('tire-wear-type/', tire_wear_type_list, name='tire_wear_type_list'),
     path('tire-wear-type/create/', tire_wear_type_create, name='tire_wear_type_create'),
     path('tire-wear-type/update/<int:id>/', tire_wear_type_update, name='tire_wear_type_update'),
