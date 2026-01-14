@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from ..models import WorkOrder, Employee, Vehicle
+from django.db.models import Q
 
 # Work Orders Views ------------------------------------------------------------------------------------------------------
 
@@ -8,10 +9,20 @@ def work_order_list(request):
     work_orders = WorkOrder.objects.all()
     employees = Employee.objects.all()
     vehicles = Vehicle.objects.all()
+    open_count = WorkOrder.objects.filter(
+        Q(status='OPENED') | Q(status='PENDING')
+    ).count()
+    # completed_count = WorkOrder.objects.filter(status='COMPLETED').count()
+
+    inspection_count = WorkOrder.objects.filter(shift_type='INSPECTION').count()
+
     context = {
         'work_orders': work_orders,
         'employees': employees,
-        'vehicles': vehicles
+        'vehicles': vehicles,
+        'open_count': open_count,
+        # 'completed_count': completed_count,
+        'inspection_count': inspection_count,
     }
     
     return render(request, 'work_orders/work_order_list.html', context)
@@ -68,6 +79,8 @@ def work_order_create(request):
             
 
     return redirect('work_order_list')
+
+
 
 def work_order_update(request, id):
 
