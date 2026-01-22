@@ -1,0 +1,296 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Employees - URES System{% endblock %}
+
+{% block page_title %}All Employees{% endblock %}
+
+{% block page_actions %}
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+        + Add Employee
+    </button>
+{% endblock %}
+
+{% block content %}
+    <!-- Filter Form -->
+    <!-- <form method="get" action="{% url 'employee_list' %}" class="mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select name="status_filter" class="form-control">
+                    <option value="">All Statuses</option>
+                    <option value="ACTIVE" {% if status_filter == "ACTIVE" %}selected{% endif %}>Active</option>
+                    <option value="INACTIVE" {% if status_filter == "INACTIVE" %}selected{% endif %}>Inactive</option>
+                    <option value="MAINTENANCE" {% if status_filter == "MAINTENANCE" %}selected{% endif %}>Under Maintenance</option>
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label">employee Type</label>
+                <select name="type_filter" class="form-control">
+                    <option value="">All Types</option>
+                    <option value="TRUCK" {% if type_filter == "TRUCK" %}selected{% endif %}>Truck</option>
+                    <option value="TRAILER" {% if type_filter == "TRAILER" %}selected{% endif %}>Trailer</option>
+                    <option value="BUS" {% if type_filter == "BUS" %}selected{% endif %}>Bus</option>
+                    <option value="VAN" {% if type_filter == "VAN" %}selected{% endif %}>Van</option>
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label">Year</label>
+                <input type="number" name="year_filter" value="{{ year_filter }}" 
+                       placeholder="Filter by year" class="form-control" min="1990" max="2030">
+            </div>
+            
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary">Apply Filters</button>
+                <a href="{% url 'employee_list' %}" class="btn btn-secondary">Clear</a>
+            </div>
+        </div>
+    </form> -->
+
+    <!-- Active Filters Display
+    {% if status_filter or type_filter or year_filter %}
+    <div class="alert alert-info d-flex justify-content-between align-items-center">
+        <div>
+            <strong>Active Filters:</strong>
+            {% if status_filter %} 
+                <span class="badge bg-primary">Status: {{ status_filter }}</span>
+            {% endif %}
+            {% if type_filter %}
+                <span class="badge bg-primary">Type: {{ type_filter }}</span>
+            {% endif %}
+            {% if year_filter %}
+                <span class="badge bg-primary">Year: {{ year_filter }}</span>
+            {% endif %}
+        </div>
+        <a href="{% url 'employee_list' %}" class="btn btn-sm btn-outline-danger">Clear All</a>
+    </div>
+    {% endif %} -->
+
+    <!-- Search Box -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <input type="text" placeholder="Search employees..." id="searchInput" class="form-control" onkeyup="tableSearch()">
+        </div>
+        <div class="col-md-6 text-end">
+            <span class="text-muted">
+                Showing {{ employees.count }} employee{{ employees.count|pluralize }}
+            </span>
+        </div>
+    </div>
+
+    <!-- employees Table -->
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Code</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Position</th>
+                    <th>Email</th>
+                    <th>Contact Number</th>
+
+                    <th style="text-align:center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for employee in employees %}
+                    <tr id="row-{{ employee.id }}">
+                        <td><strong>{{ employee.employment_code }}</strong></td>
+                        <td>{{ employee.first_name }}</td>
+                        <td>{{ employee.last_name }}</td>
+                        <td>{{ employee.position }}</td>
+                        <td>{{ employee.email }}</td>
+                        <td>{{ employee.contact_number }}</td>
+
+                        </td>
+                        <td style="text-align:center;">
+                            <!-- Edit Button -->
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal-{{ employee.id }}">
+                                ✏️ Edit
+                            </button>
+
+                            <!-- Details Button -->
+                            <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#detailsModal-{{ employee.id }}">
+                                👁️ Details
+                            </button>
+                            
+                            <!-- Delete Button -->
+                            <form method="post" action="{% url 'employee_delete' employee.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirmDelete('Are you sure you want to delete employee {{ employee.license_plate }}?')">
+                                    🗑️ Delete
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            No employees found. <a href="#" data-bs-toggle="modal" data-bs-target="#createModal">Add the first employee</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Create employee Modal -->
+    <div class="modal fade" id="createModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" action="{% url 'employee_create' %}">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add New employee</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Code</label>
+                            <input type="text" name="employment_code" class="form-control" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">First Name</label>
+                            <input type="text" name="first_name" class="form-control" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Last Name</label>
+                            <input type="text" name="last_name" class="form-control" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Position</label>
+                            <input type="text" name="position" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Contact Number</label>
+                            <input type="text" name="contact_number" class="form-control" required>
+                        </div>
+
+                        
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">Create employee</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit and Details Modals for each employee -->
+    {% for employee in employees %}
+        <!-- Edit Modal -->
+        <div class="modal fade" id="editModal-{{ employee.id }}">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="post" action="{% url 'employee_update' employee.id %}">
+                        {% csrf_token %}
+                        <div class="modal-header">
+                            <h5 class="modal-title">Update employee</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label>Code</label>
+                                <input type="text" name="employment_code" 
+                                       value="{{ employee.employment_code }}" class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label>First Name</label>
+                                <input type="text" name="first_name" 
+                                       value="{{ employee.first_name}}" class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Last Name</label>
+                                <input type="text" name="last_name" value="{{ employee.last_name }}" class="form-control" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Position</label>
+                                <input type="text" name="position" value="{{ employee.position }}" class="form-control" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="email" value="{{ employee.email }}" class="form-control" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Contact Number</label>
+                                <input type="text" name="contact_number" value="{{ employee.contact_number }}" class="form-control" required>
+                            </div>
+
+                            
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-success">Update employee</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Modal -->
+        <div class="modal fade" id="detailsModal-{{ employee.id }}">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">employee Details - {{ employee.employment_code }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>First Name:</strong> {{ employee.first_name }}</p>
+                                <p><strong>Last Name:</strong> {{ employee.last_name }}</p>
+                                <p><strong>Position:</strong> {{ employee.position }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Email:</strong> {{ employee.email }}</p>
+                                <p><strong>Contact Number:</strong> {{ employee.contact_number }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function tableSearch() {
+        let input = document.getElementById("searchInput");
+        let filter = input.value.toUpperCase();
+        let table = document.getElementsByClassName("table")[0];
+        let tr = table.getElementsByTagName("tr");
+
+        for (let i = 0; i < tr.length; i++) {
+            let td = tr[i].getElementsByTagName("td")[0];
+            if (td) {
+                let txtValue = td.textContent || td.innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

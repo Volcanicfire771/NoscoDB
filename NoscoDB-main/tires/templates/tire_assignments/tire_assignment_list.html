@@ -1,0 +1,1418 @@
+<!-- tire_assignments/tire_assignment_list.html -->
+{% extends 'base/base.html' %}
+
+{% block title %}Tire Assignment - URES System{% endblock %}
+
+{% block page_title %}All Tire Assignments{% endblock %}
+
+{% block page_actions %}
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+        + Add Tire Assignments
+    </button>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <input type="text" placeholder="Search tire assignments..." id="searchInput" class="form-control" onkeyup="tableSearch()">
+    </div>
+    <div class="col-md-6 text-end">
+        <span class="text-muted">
+            Showing {{ tire_assignments.count }} tire assignment{{ tire_assignments.count|pluralize }}
+        </span>
+    </div>
+</div>
+
+<!-- Tire Assignments Table -->
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th width="100">Operation</th>
+                <th>Tire #</th>
+                <th>From Position</th>
+                <th>To Position</th>
+                <th>Work Order</th>
+                <th>Inspection #</th>
+                <th style="text-align:center;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tire_assignment in tire_assignments %}
+                <tr id="row-{{ tire_assignment.id }}" class="{% if tire_assignment.is_discard %}table-danger{% endif %}">
+                    <td>
+                        {% if tire_assignment.is_discard %}
+                            <span class="badge bg-danger">🚫 Discard</span>
+                        {% elif tire_assignment.from_position_is_new_mount %}
+                            <span class="badge bg-success">🆕 Mount</span>
+                        {% else %}
+                            <span class="badge bg-secondary">🔄 Move</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ tire_assignment.tire.serial_number }}
+                        {% if tire_assignment.tire.is_scrapped %}
+                            <span class="badge bg-dark">SCRAPPED</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if tire_assignment.tire_position_from %}
+                            {{ tire_assignment.tire_position_from.vehicle.license_plate }} - {{ tire_assignment.tire_position_from.position_name }}
+                        {% elif tire_assignment.from_position_is_new_mount %}
+                            <span class="text-success">NEW MOUNT</span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if tire_assignment.is_discard %}
+                            <span class="badge bg-danger">🚫 DISCARDED</span>
+                            <small class="text-muted d-block">{{ tire_assignment.reason_for_removal|truncatechars:30 }}</small>
+                        {% elif tire_assignment.tire_position_to %}
+                            {{ tire_assignment.tire_position_to.vehicle.license_plate }} - {{ tire_assignment.tire_position_to.position_name }}
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ tire_assignment.work_order.work_order_number }}</td>
+                    <td>
+                        {% if tire_assignment.inspection %}
+                            {{ tire_assignment.inspection.id }}
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align:center;">
+                        <!-- Edit button - hide for discard operations -->
+                        {% if not tire_assignment.is_discard %}
+                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal-{{ tire_assignment.id }}">
+                            ✏️ Edit
+                        </button>
+                        {% endif %}
+                        
+                        <!-- Details button -->
+                        <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#detailsModal-{{ tire_assignment.id }}">
+                            👁️ Details
+                        </button>
+                        
+                        <!-- Delete button -->
+                        <form method="post" action="{% url 'tire_assignment_delete' tire_assignment.id %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                    onclick="return confirmDelete('Are you sure you want to delete this tire assignment?')">
+                                🗑️ Delete
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        No tire assignments found. <a href="#" data-bs-toggle="modal" data-bs-target="#createModal">Add the first tire assignment</a>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Create Tire Assignment Modal -->
+<div class="modal fade" id="createModal">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{% url 'tire_assignment_create' %}" id="assignmentForm">
+                {% csrf_token %}
+                
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Tire Assignment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                
+                <div class="modal-body">
+                    <!-- OPERATION SELECTION BUTTONS -->
+                    <div class="operation-buttons text-center mb-4">
+                        <button type="button" class="btn btn-outline-secondary operation-btn active" onclick="selectOperation('move')">
+                            🔄 Move Tire
+                        </button>
+                        <button type="button" class="btn btn-outline-success operation-btn" onclick="selectOperation('mount')">
+                            🆕 Mount New
+                        </button>
+                        <button type="button" class="btn btn-outline-danger operation-btn" onclick="selectOperation('discard')">
+                            🚫 Discard Tire
+                        </button>
+                    </div>
+                    
+                    <!-- Operation Indicator -->
+                    <div class="alert alert-info mb-3" id="operationIndicator">
+                        <strong>🔄 Moving Tire:</strong> Transfer tire between positions or vehicles
+                    </div>
+                    
+                    <!-- Hidden field for discard detection -->
+                    <input type="hidden" name="discard_flag" id="discardFlag" value="">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <!-- From Vehicle -->
+                            <div class="mb-3">
+                                <label class="form-label">From Vehicle *</label>
+                                <select name="from_vehicle" class="form-select" id="fromVehicleSelect" required>
+                                    <option value="">Select vehicle</option>
+                                    {% for vehicle in vehicles %}
+                                        <option value="{{ vehicle.id }}">{{ vehicle.license_plate }} - {{ vehicle.make }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- From Position -->
+                            <div class="mb-3">
+                                <label class="form-label">From Position *</label>
+                                <select name="tire_position_from" class="form-select" id="fromPositionSelect" required>
+                                    <option value="">Select position</option>
+                                    <!-- Add Mount New Tire option -->
+                                    <option value="NEW_MOUNT" data-mount-new="true">🆕 MOUNT NEW TIRE (Not currently on a vehicle)</option>
+                                    <!-- Existing positions with tires -->
+                                    {% for position in positions_with_tires %}
+                                        <option value="{{ position.id }}" 
+                                                data-vehicle="{{ position.vehicle.id }}" 
+                                                data-tire="{{ position.mounted_tire.id }}"
+                                                {% if position.mounted_tire.is_scrapped %}disabled style="color: #999;"{% endif %}>
+                                            {{ position.position_name }} - {{ position.mounted_tire.serial_number }}
+                                            {% if position.mounted_tire.is_scrapped %}(Scrapped){% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Select position with tire, or "MOUNT NEW TIRE" for unmounted tires</small>
+                            </div>
+
+                            <!-- Hidden tire field (auto-filled OR manually selected) -->
+                            <input type="hidden" name="tire" id="selectedTireId">
+
+                            <!-- NEW: Tire Selection for New Mounts (initially hidden) -->
+                            <div class="mb-3" id="newTireSelection" style="display: none;">
+                                <label class="form-label">Select Tire to Mount *</label>
+                                <select name="new_tire_select" class="form-select" id="newTireSelect">
+                                    <option value="">Select unmounted tire</option>
+                                    {% for tire in unmounted_tires %}
+                                        <option value="{{ tire.id }}" 
+                                                data-status="{{ tire.status.status_name }}"
+                                                {% if tire.is_scrapped %}disabled style="color: #999;"{% endif %}>
+                                            {{ tire.serial_number }} - {{ tire.status.status_name }}
+                                            {% if tire.is_scrapped %}(Scrapped){% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Only unmounted, non-scrapped tires are shown</small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <!-- To Vehicle -->
+                            <div class="mb-3">
+                                <label class="form-label">To Vehicle *</label>
+                                <select name="to_vehicle" class="form-select" id="toVehicleSelect" required>
+                                    <option value="">Select vehicle</option>
+                                    {% for vehicle in vehicles %}
+                                        <option value="{{ vehicle.id }}">{{ vehicle.license_plate }} - {{ vehicle.make }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- To Position -->
+                            <div class="mb-3">
+                                <label class="form-label">To Position *</label>
+                                <select name="tire_position_to" class="form-select" id="toPositionSelect" required>
+                                    <option value="">Select position</option>
+                                    <!-- Add Discard option -->
+                                    <option value="DISCARD" data-discard="true">🚫 DISCARD TIRE (Remove from Service)</option>
+                                    <!-- Empty positions -->
+                                    {% for position in empty_positions %}
+                                        <option value="{{ position.id }}" data-vehicle="{{ position.vehicle.id }}">
+                                            {{ position.position_name }} - {{ position.vehicle.license_plate }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Select a position or "DISCARD TIRE" to remove from service</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <!-- Work Order -->
+                            <div class="mb-3">
+                                <label class="form-label">Work Order *</label>
+                                <select name="work_order" class="form-select" id="workOrderSelect" required>
+                                    <option value="">Select work order</option>
+                                    {% for wo in open_work_orders %}
+                                        <option value="{{ wo.id }}" data-vehicle="{{ wo.vehicle.id }}">
+                                            {{ wo.work_order_number }} - {{ wo.vehicle.license_plate }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Assignment Date -->
+                            <div class="mb-3">
+                                <label class="form-label">Assignment Date *</label>
+                                <input type="date" name="assignment_date" class="form-control" value="{% now 'Y-m-d' %}" required>
+                            </div>
+
+                            <!-- Removal Date (Optional) -->
+                            <div class="mb-3">
+                                <label class="form-label">Removal Date (Optional)</label>
+                                <input type="date" name="removal_date" class="form-control">
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <!-- Reason for Removal -->
+                            <div class="mb-3">
+                                <label class="form-label">Reason for Removal <span id="reasonRequired" class="text-danger" style="display:none;">*</span></label>
+                                <input type="text" name="reason_for_removal" class="form-control" 
+                                       id="reasonForRemoval" 
+                                       placeholder="e.g., Wear, Damage, Rotation">
+                            </div>
+
+                            <!-- Inspection (Optional) -->
+                            <div class="mb-3">
+                                <label class="form-label">Inspection (Optional)</label>
+                                <select name="inspection" class="form-select" id="inspectionSelect">
+                                    <option value="">No inspection</option>
+                                    {% for inspection in tire_inspections %}
+                                        <option value="{{ inspection.id }}" data-tire="{{ inspection.tire.id }}">
+                                            {{ inspection.tire.serial_number }} - Inspection #{{ inspection.id }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Notes (Optional) -->
+                            <div class="mb-3">
+                                <label class="form-label">Notes (Optional)</label>
+                                <textarea name="notes" class="form-control" rows="3" placeholder="Any additional notes..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">Create Assignment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit and Details Modals for each tire assignment -->
+{% for tire_assignment in tire_assignments %}
+    {% if not tire_assignment.is_discard %}
+    <!-- Edit Modal -->
+    <div class="modal fade" id="editModal-{{ tire_assignment.id }}">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" action="{% url 'tire_assignment_update' tire_assignment.id %}">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title">Update Tire Assignment</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Tire #</label>
+                            <select name="tire" class="form-select" required>
+                                <option value="">Select a tire</option>
+                                {% for tire in tires %}
+                                    <option value="{{ tire.id }}" 
+                                            {% if tire_assignment.tire.id == tire.id %}selected{% endif %}
+                                            {% if tire.is_scrapped %}disabled{% endif %}>
+                                        {{ tire.serial_number }}
+                                        {% if tire.is_scrapped %}(Scrapped){% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">From Position</label>
+                            <select name="tire_position_from" class="form-select" required>
+                                <option value="">Select a position</option>
+                                {% for position in positions_with_tires %}
+                                    <option value="{{ position.id }}" 
+                                            {% if tire_assignment.tire_position_from and tire_assignment.tire_position_from.id == position.id %}selected{% endif %}>
+                                        {{ position.vehicle.license_plate }} - {{ position.position_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">To Position</label>
+                            <select name="tire_position_to" class="form-select" required>
+                                <option value="">Select a position</option>
+                                {% for position in empty_positions %}
+                                    <option value="{{ position.id }}" 
+                                            {% if tire_assignment.tire_position_to and tire_assignment.tire_position_to.id == position.id %}selected{% endif %}>
+                                        {{ position.vehicle.license_plate }} - {{ position.position_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Assignment Date</label>
+                            <input type="date" name="assignment_date" class="form-control" 
+                                   value="{{ tire_assignment.assignment_date|date:'Y-m-d' }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Removal Date</label>
+                            <input type="date" name="removal_date" class="form-control" 
+                                   value="{{ tire_assignment.removal_date|date:'Y-m-d' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Reason for Removal</label>
+                            <input type="text" name="reason_for_removal" class="form-control" 
+                                   value="{{ tire_assignment.reason_for_removal }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Work Order</label>
+                            <select name="work_order" class="form-select" required>
+                                <option value="">Select a work order</option>
+                                {% for work_order in open_work_orders %}
+                                    <option value="{{ work_order.id }}" 
+                                            {% if tire_assignment.work_order.id == work_order.id %}selected{% endif %}>
+                                        {{ work_order.work_order_number }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Inspection</label>
+                            <select name="inspection" class="form-select">
+                                <option value="">No inspection</option>
+                                {% for inspection in tire_inspections %}
+                                    <option value="{{ inspection.id }}" 
+                                            {% if tire_assignment.inspection and tire_assignment.inspection.id == inspection.id %}selected{% endif %}>
+                                        {{ inspection.tire.serial_number }} - #{{ inspection.id }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Update</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Details Modal -->
+    <div class="modal fade" id="detailsModal-{{ tire_assignment.id }}">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        {% if tire_assignment.is_discard %}
+                            🚫 Discard Details - {{ tire_assignment.tire.serial_number }}
+                        {% else %}
+                            Tire Assignment Details - {{ tire_assignment.tire.serial_number }}
+                        {% endif %}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Assignment ID:</strong> {{ tire_assignment.id }}</p>
+                            <p><strong>Tire:</strong> {{ tire_assignment.tire.serial_number }}</p>
+                            <p><strong>Tire Status:</strong> {{ tire_assignment.tire.status.status_name }}</p>
+                            <p><strong>Tire Scrapped:</strong> {{ tire_assignment.tire.is_scrapped|yesno:"Yes,No" }}</p>
+                            
+                            {% if tire_assignment.tire_position_from %}
+                            <p><strong>From Vehicle:</strong> {{ tire_assignment.tire_position_from.vehicle.license_plate }}</p>
+                            <p><strong>From Position:</strong> {{ tire_assignment.tire_position_from.position_name }}</p>
+                            {% else %}
+                            <p><strong>From:</strong> <span class="text-muted">Not specified</span></p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            {% if tire_assignment.is_discard %}
+                                <p><strong>Operation:</strong> <span class="badge bg-danger">DISCARDED</span></p>
+                                <p><strong>Discard Reason:</strong> {{ tire_assignment.reason_for_removal }}</p>
+                                <p><strong>Current Position:</strong> <span class="text-muted">None (Discarded)</span></p>
+                                <p><strong>Current Vehicle:</strong> <span class="text-muted">None (Discarded)</span></p>
+                            {% else %}
+                                {% if tire_assignment.tire_position_to %}
+                                <p><strong>To Vehicle:</strong> {{ tire_assignment.tire_position_to.vehicle.license_plate }}</p>
+                                <p><strong>To Position:</strong> {{ tire_assignment.tire_position_to.position_name }}</p>
+                                <p><strong>Current Position:</strong> {{ tire_assignment.tire.current_position|default:"Not set" }}</p>
+                                <p><strong>Current Vehicle:</strong> {{ tire_assignment.tire.current_vehicle|default:"Not set" }}</p>
+                                {% endif %}
+                            {% endif %}
+                            
+                            <p><strong>Work Order:</strong> {{ tire_assignment.work_order.work_order_number }}</p>
+                            <p><strong>Assignment Date:</strong> {{ tire_assignment.assignment_date }}</p>
+                            {% if tire_assignment.removal_date %}
+                            <p><strong>Removal Date:</strong> {{ tire_assignment.removal_date }}</p>
+                            {% endif %}
+                            <p><strong>Inspection:</strong> {{ tire_assignment.inspection.id|default:"None" }}</p>
+                        </div>
+                    </div>
+                    
+                    {% if tire_assignment.notes %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <p><strong>Notes:</strong></p>
+                            <div class="border rounded p-2 bg-light">
+                                {{ tire_assignment.notes|linebreaks }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Variables to store all options
+let allFromPositions = [];
+let allToPositions = [];
+let allWorkOrders = [];
+let allInspections = [];
+
+// Track current operation
+let currentOperation = 'move';
+
+// When page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Page loaded - initializing tire assignment form');
+    
+    // Save all options
+    allFromPositions = Array.from(document.getElementById('fromPositionSelect').options);
+    allToPositions = Array.from(document.getElementById('toPositionSelect').options);
+    allWorkOrders = Array.from(document.getElementById('workOrderSelect').options);
+    allInspections = Array.from(document.getElementById('inspectionSelect').options);
+    
+    // Set today's date
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelector('input[name="assignment_date"]').value = today;
+    
+    // ========== ADDED: DEBUG MONITORING ==========
+    // Monitor toPositionSelect for ANY changes
+    const toPositionSelect = document.getElementById('toPositionSelect');
+    if (toPositionSelect) {
+        console.log('DEBUG INIT: toPositionSelect initial value:', toPositionSelect.value);
+        
+        // Monitor change events
+        toPositionSelect.addEventListener('change', function(e) {
+            console.log('DEBUG CHANGE: toPositionSelect changed!');
+            console.log('  New value:', this.value);
+            console.log('  Selected index:', this.selectedIndex);
+            console.log('  Event type:', e.type);
+            console.trace(); // Show where this change came from
+        });
+        
+        // Monitor input events
+        toPositionSelect.addEventListener('input', function(e) {
+            console.log('DEBUG INPUT: toPositionSelect input event');
+            console.log('  Value:', this.value);
+            console.log('  Event type:', e.type);
+        });
+        
+        // Monitor property changes (if supported)
+        let lastValue = toPositionSelect.value;
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'value') {
+                    console.log('DEBUG MUTATION: toPositionSelect value attribute changed');
+                    console.log('  Old value:', lastValue);
+                    console.log('  New value:', toPositionSelect.value);
+                    lastValue = toPositionSelect.value;
+                }
+            });
+        });
+        
+        observer.observe(toPositionSelect, {
+            attributes: true,
+            attributeFilter: ['value']
+        });
+        
+        // Also monitor the form for reset events
+        const form = document.getElementById('assignmentForm');
+        if (form) {
+            form.addEventListener('reset', function() {
+                console.log('DEBUG RESET: Form reset triggered');
+                console.log('  toPositionSelect value after reset:', toPositionSelect.value);
+            });
+        }
+    }
+    
+    // Monitor discardFlag hidden field
+    const discardFlag = document.getElementById('discardFlag');
+    if (discardFlag) {
+        discardFlag.addEventListener('change', function() {
+            console.log('DEBUG: discardFlag changed to:', this.value);
+        });
+    }
+    
+    // ========== END DEBUG MONITORING ==========
+    
+    // Set up event listeners
+    document.getElementById('fromVehicleSelect').addEventListener('change', filterFromPositions);
+    document.getElementById('fromPositionSelect').addEventListener('change', handleFromPositionChange);
+    document.getElementById('toVehicleSelect').addEventListener('change', filterToPositions);
+    document.getElementById('toVehicleSelect').addEventListener('change', filterWorkOrders);
+    document.getElementById('fromVehicleSelect').addEventListener('change', filterWorkOrders);
+    document.getElementById('toPositionSelect').addEventListener('change', handleToPositionChange);
+    document.getElementById('newTireSelect').addEventListener('change', handleNewTireSelect);
+    
+    // Set up operation change handlers
+    document.querySelectorAll('.operation-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const text = this.textContent.trim();
+            const operation = text.includes('Move') ? 'move' : 
+                            text.includes('Mount') ? 'mount' : 'discard';
+            console.log('Operation button clicked:', operation);
+            selectOperation(operation);
+        });
+    });
+    
+
+    selectOperation('move');
+
+    
+    // Initialize the form
+    // selectOperation('move');
+});
+
+// ========== FILTER FUNCTIONS ==========
+
+// Filter FROM positions by vehicle
+function filterFromPositions() {
+    console.log('filterFromPositions called');
+    const vehicleId = this.value;
+    const select = document.getElementById('fromPositionSelect');
+    
+    if (!select) {
+        console.error('fromPositionSelect not found');
+        return;
+    }
+    
+    select.innerHTML = '<option value="">Select position</option>';
+    
+    // Add NEW_MOUNT option first (only for move operation)
+    if (currentOperation === 'move') {
+        const newMountOption = allFromPositions.find(opt => opt.value === 'NEW_MOUNT');
+        if (newMountOption) {
+            select.appendChild(newMountOption.cloneNode(true));
+        }
+    }
+    
+    allFromPositions.forEach(option => {
+        if (option.value && option.dataset.vehicle === vehicleId && option.value !== 'NEW_MOUNT') {
+            select.appendChild(option.cloneNode(true));
+        }
+    });
+    
+    // Clear tire ID when vehicle changes
+    document.getElementById('selectedTireId').value = '';
+}
+
+// Filter TO positions by vehicle
+function filterToPositions() {
+    console.log('filterToPositions called');
+    const vehicleId = this.value;
+    const select = document.getElementById('toPositionSelect');
+    
+    if (!select) {
+        console.error('toPositionSelect not found');
+        return;
+    }
+    
+    select.innerHTML = '<option value="">Select position</option>';
+    
+    // Add DISCARD option first (only for move operation)
+    if (currentOperation === 'move') {
+        const discardOption = allToPositions.find(opt => opt.value === 'DISCARD');
+        if (discardOption) {
+            select.appendChild(discardOption.cloneNode(true));
+        }
+    }
+    
+    allToPositions.forEach(option => {
+        if (option.value && option.dataset.vehicle === vehicleId && option.value !== 'DISCARD') {
+            select.appendChild(option.cloneNode(true));
+        }
+    });
+}
+
+// Filter work orders by vehicle
+function filterWorkOrders() {
+    console.log('filterWorkOrders called');
+    let vehicleId;
+    
+    // Get vehicle ID based on current operation
+    if (currentOperation === 'mount') {
+        // For mount, use to_vehicle
+        vehicleId = document.getElementById('toVehicleSelect')?.value;
+    } else if (currentOperation === 'discard') {
+        // For discard, use from_vehicle
+        vehicleId = document.getElementById('fromVehicleSelect')?.value;
+    } else {
+        // For move, try from_vehicle first, then to_vehicle
+        vehicleId = document.getElementById('fromVehicleSelect')?.value || 
+                   document.getElementById('toVehicleSelect')?.value;
+    }
+    
+    const select = document.getElementById('workOrderSelect');
+    if (!select) {
+        console.error('workOrderSelect not found');
+        return;
+    }
+    
+    select.innerHTML = '<option value="">Select work order</option>';
+    
+    if (vehicleId) {
+        console.log('Filtering work orders for vehicle:', vehicleId);
+        allWorkOrders.forEach(option => {
+            if (option.value && option.dataset.vehicle === vehicleId) {
+                select.appendChild(option.cloneNode(true));
+            }
+        });
+    } else {
+        // If no vehicle selected, show all work orders
+        console.log('No vehicle selected, showing all work orders');
+        allWorkOrders.forEach(option => {
+            if (option.value) {
+                select.appendChild(option.cloneNode(true));
+            }
+        });
+    }
+}
+
+// Filter work orders by specific vehicle
+function filterWorkOrdersByVehicle(vehicleId) {
+    console.log('filterWorkOrdersByVehicle called for:', vehicleId);
+    const select = document.getElementById('workOrderSelect');
+    
+    if (!select) {
+        console.error('workOrderSelect not found');
+        return;
+    }
+    
+    select.innerHTML = '<option value="">Select work order</option>';
+    
+    allWorkOrders.forEach(option => {
+        if (option.value && option.dataset.vehicle === vehicleId) {
+            select.appendChild(option.cloneNode(true));
+        }
+    });
+}
+
+// Filter inspections by selected tire
+function filterInspections() {
+    console.log('filterInspections called');
+    const tireId = document.getElementById('selectedTireId').value;
+    const select = document.getElementById('inspectionSelect');
+    
+    if (!select) {
+        console.error('inspectionSelect not found');
+        return;
+    }
+    
+    select.innerHTML = '<option value="">No inspection</option>';
+    
+    allInspections.forEach(option => {
+        if (option.value && option.dataset.tire === tireId) {
+            select.appendChild(option.cloneNode(true));
+        }
+    });
+}
+
+// ========== OPERATION FUNCTIONS ==========
+
+// OPERATION SELECTION
+function selectOperation(operation) {
+    console.log('selectOperation called:', operation);
+    currentOperation = operation;
+    
+    // Set discard flag for backend
+    const discardFlag = document.getElementById('discardFlag');
+    if (discardFlag) {
+        discardFlag.value = (operation === 'discard') ? 'true' : '';
+        console.log('discardFlag set to:', discardFlag.value);
+    }
+    
+    // Update active button
+    document.querySelectorAll('.operation-btn').forEach(btn => {
+        btn.classList.remove('active', 'btn-primary', 'btn-success', 'btn-danger');
+        btn.classList.add('btn-outline-secondary', 'btn-outline-success', 'btn-outline-danger');
+    });
+    
+    // Activate the correct button
+    const buttons = document.querySelectorAll('.operation-btn');
+    const activeBtn = buttons[operation === 'move' ? 0 : operation === 'mount' ? 1 : 2];
+    
+    if (activeBtn) {
+        activeBtn.classList.remove('btn-outline-secondary', 'btn-outline-success', 'btn-outline-danger');
+        if (operation === 'move') activeBtn.classList.add('btn-primary', 'active');
+        if (operation === 'mount') activeBtn.classList.add('btn-success', 'active');
+        if (operation === 'discard') activeBtn.classList.add('btn-danger', 'active');
+    }
+    
+    // Update operation indicator
+    updateOperationIndicator(operation);
+    
+    // Update form based on operation
+    updateFormForOperation(operation);
+}
+
+function updateOperationIndicator(operation) {
+    const indicator = document.getElementById('operationIndicator');
+    if (!indicator) return;
+    
+    switch(operation) {
+        case 'move':
+            indicator.className = 'alert alert-info mb-3';
+            indicator.innerHTML = '<strong>🔄 Moving Tire:</strong> Transfer tire between positions or vehicles';
+            document.getElementById('submitBtn').textContent = 'Create Move Assignment';
+            break;
+        case 'mount':
+            indicator.className = 'alert alert-success mb-3';
+            indicator.innerHTML = '<strong>🆕 Mount New Tire:</strong> Install unmounted tire to vehicle';
+            document.getElementById('submitBtn').textContent = 'Create Mount Assignment';
+            break;
+        case 'discard':
+            indicator.className = 'alert alert-danger mb-3';
+            indicator.innerHTML = '<strong>🚫 Discard Tire:</strong> Remove tire from service permanently';
+            document.getElementById('submitBtn').textContent = 'Create Discard Assignment';
+            break;
+    }
+}
+
+function updateFormForOperation(operation) {
+    console.log('updateFormForOperation:', operation);
+    // Reset all fields first
+    resetFormFields();
+    
+    switch(operation) {
+        case 'move':
+            setupMoveForm();
+            break;
+        case 'mount':
+            setupMountForm();
+            break;
+        case 'discard':
+            setupDiscardForm();
+            break;
+    }
+}
+
+
+function resetFormFields() {
+    console.log('resetFormFields called');
+    // Show all fields initially
+    const fromVehicleDiv = document.getElementById('fromVehicleSelect')?.closest('.mb-3');
+    const fromPositionDiv = document.getElementById('fromPositionSelect')?.closest('.mb-3');
+    const toVehicleDiv = document.getElementById('toVehicleSelect')?.closest('.mb-3');
+    const toPositionDiv = document.getElementById('toPositionSelect')?.closest('.mb-3');
+    const newTireDiv = document.getElementById('newTireSelection');
+    
+    if (fromVehicleDiv) fromVehicleDiv.style.display = 'block';
+    if (fromPositionDiv) fromPositionDiv.style.display = 'block';
+    if (toVehicleDiv) toVehicleDiv.style.display = 'block';
+    if (toPositionDiv) toPositionDiv.style.display = 'block';
+    if (newTireDiv) newTireDiv.style.display = 'none';
+    
+    // Enable all selects
+    const fromVehicleSelect = document.getElementById('fromVehicleSelect');
+    const fromPositionSelect = document.getElementById('fromPositionSelect');
+    const toVehicleSelect = document.getElementById('toVehicleSelect');
+    const toPositionSelect = document.getElementById('toPositionSelect');
+    const newTireSelect = document.getElementById('newTireSelect');
+    
+    if (fromVehicleSelect) fromVehicleSelect.disabled = false;
+    if (fromPositionSelect) fromPositionSelect.disabled = false;
+    if (toVehicleSelect) toVehicleSelect.disabled = false;
+    if (toPositionSelect) toPositionSelect.disabled = false;
+    if (newTireSelect) newTireSelect.disabled = false;
+    
+    // Set required fields
+    if (fromVehicleSelect) fromVehicleSelect.required = true;
+    if (fromPositionSelect) fromPositionSelect.required = true;
+    if (toVehicleSelect) toVehicleSelect.required = true;
+    if (toPositionSelect) toPositionSelect.required = true;
+    if (newTireSelect) newTireSelect.required = false;
+    
+    const reasonForRemoval = document.getElementById('reasonForRemoval');
+    if (reasonForRemoval) reasonForRemoval.required = false;
+    
+    // Clear reason warning
+    const reasonRequired = document.getElementById('reasonRequired');
+    if (reasonRequired) reasonRequired.style.display = 'none';
+    if (reasonForRemoval) reasonForRemoval.placeholder = 'e.g., Wear, Damage, Rotation';
+    
+    // Remove discard warning
+    const warning = document.getElementById('discardWarning');
+    if (warning) warning.remove();
+    
+    // Clear values
+    if (fromPositionSelect) fromPositionSelect.value = '';
+    if (toPositionSelect) toPositionSelect.value = '';
+    document.getElementById('selectedTireId').value = '';
+}
+
+function setupMoveForm() {
+    console.log('setupMoveForm called');
+    // Show all fields for move operation
+    const fromVehicleDiv = document.getElementById('fromVehicleSelect')?.closest('.mb-3');
+    const fromPositionDiv = document.getElementById('fromPositionSelect')?.closest('.mb-3');
+    const toVehicleDiv = document.getElementById('toVehicleSelect')?.closest('.mb-3');
+    const toPositionDiv = document.getElementById('toPositionSelect')?.closest('.mb-3');
+    const newTireDiv = document.getElementById('newTireSelection');
+    
+    if (fromVehicleDiv) fromVehicleDiv.style.display = 'block';
+    if (fromPositionDiv) fromPositionDiv.style.display = 'block';
+    if (toVehicleDiv) toVehicleDiv.style.display = 'block';
+    if (toPositionDiv) toPositionDiv.style.display = 'block';
+    if (newTireDiv) newTireDiv.style.display = 'none';
+    
+    // Filter positions
+    filterFromPositions.call(document.getElementById('fromVehicleSelect') || {value: ''});
+    filterToPositions.call(document.getElementById('toVehicleSelect') || {value: ''});
+}
+
+function setupMountForm() {
+    console.log('setupMountForm called');
+    // Hide from vehicle/position for mount operation
+    const fromVehicleDiv = document.getElementById('fromVehicleSelect')?.closest('.mb-3');
+    const fromPositionDiv = document.getElementById('fromPositionSelect')?.closest('.mb-3');
+    const toVehicleDiv = document.getElementById('toVehicleSelect')?.closest('.mb-3');
+    const toPositionDiv = document.getElementById('toPositionSelect')?.closest('.mb-3');
+    const newTireDiv = document.getElementById('newTireSelection');
+    
+    if (fromVehicleDiv) fromVehicleDiv.style.display = 'none';
+    if (fromPositionDiv) fromPositionDiv.style.display = 'none';
+    if (toVehicleDiv) toVehicleDiv.style.display = 'block';
+    if (toPositionDiv) toPositionDiv.style.display = 'block';
+    if (newTireDiv) newTireDiv.style.display = 'block';
+    
+    // Set mount-specific values
+    const fromPositionSelect = document.getElementById('fromPositionSelect');
+    const newTireSelect = document.getElementById('newTireSelect');
+    
+    if (fromPositionSelect) {
+        fromPositionSelect.value = 'NEW_MOUNT';
+        fromPositionSelect.disabled = true;
+        fromPositionSelect.required = false;
+    }
+    
+    if (newTireSelect) {
+        newTireSelect.required = true;
+    }
+    
+    const fromVehicleSelect = document.getElementById('fromVehicleSelect');
+    if (fromVehicleSelect) {
+        fromVehicleSelect.disabled = true;
+        fromVehicleSelect.required = false;
+    }
+    
+    // Clear tire ID
+    document.getElementById('selectedTireId').value = '';
+    
+    // Filter to positions
+    filterToPositions.call(document.getElementById('toVehicleSelect') || {value: ''});
+}
+
+function setupDiscardForm() {
+    console.log('=== setupDiscardForm START ===');
+    
+    // Hide to vehicle/position for discard operation
+    const fromVehicleDiv = document.getElementById('fromVehicleSelect')?.closest('.mb-3');
+    const fromPositionDiv = document.getElementById('fromPositionSelect')?.closest('.mb-3');
+    const toVehicleDiv = document.getElementById('toVehicleSelect')?.closest('.mb-3');
+    const toPositionDiv = document.getElementById('toPositionSelect')?.closest('.mb-3');
+    const newTireDiv = document.getElementById('newTireSelection');
+    
+    if (fromVehicleDiv) fromVehicleDiv.style.display = 'block';
+    if (fromPositionDiv) fromPositionDiv.style.display = 'block';
+    if (toVehicleDiv) toVehicleDiv.style.display = 'none';
+    if (toPositionDiv) toPositionDiv.style.display = 'none';
+    if (newTireDiv) newTireDiv.style.display = 'none';
+    
+    // CRITICAL FIX: Set the value to "DISCARD" for discard operation
+    const toPositionSelect = document.getElementById('toPositionSelect');
+    const toVehicleSelect = document.getElementById('toVehicleSelect');
+    
+    if (toPositionSelect) {
+        // Clear and set DISCARD as the only option
+        toPositionSelect.innerHTML = '<option value="DISCARD" selected>🚫 DISCARD TIRE (Remove from Service)</option>';
+        toPositionSelect.value = 'DISCARD';
+        toPositionSelect.disabled = true;
+        toPositionSelect.required = false;  // Not required since we're setting it
+        
+        console.log('DEBUG: toPositionSelect value set to:', toPositionSelect.value);
+        console.log('DEBUG: toPositionSelect.selectedIndex:', toPositionSelect.selectedIndex);
+        console.log('DEBUG: toPositionSelect.options[0].value:', toPositionSelect.options[0]?.value);
+        
+        // Double-check by reading back the value
+        setTimeout(() => {
+            console.log('DEBUG (delayed): toPositionSelect.value:', toPositionSelect.value);
+        }, 100);
+    }
+    
+    if (toVehicleSelect) {
+        toVehicleSelect.disabled = true;
+        toVehicleSelect.required = false;
+    }
+    
+    // Set discard flag
+    const discardFlag = document.getElementById('discardFlag');
+    if (discardFlag) {
+        discardFlag.value = 'true';
+        console.log('DEBUG: discardFlag set to true');
+    }
+    
+    const reasonForRemoval = document.getElementById('reasonForRemoval');
+    const reasonRequired = document.getElementById('reasonRequired');
+    
+    if (reasonForRemoval) {
+        reasonForRemoval.required = true;
+        reasonForRemoval.placeholder = 'Required: Reason for discarding (e.g., worn out, damaged, etc.)';
+    }
+    
+    if (reasonRequired) {
+        reasonRequired.style.display = 'inline';
+    }
+    
+    // Also fix from vehicle/position requirements for discard
+    const fromVehicleSelect = document.getElementById('fromVehicleSelect');
+    const fromPositionSelect = document.getElementById('fromPositionSelect');
+    
+    if (fromVehicleSelect) {
+        fromVehicleSelect.required = true;
+    }
+    
+    if (fromPositionSelect) {
+        fromPositionSelect.required = true;
+    }
+    
+    // Add warning message
+    const fromPositionDivElement = document.getElementById('fromPositionSelect')?.closest('.mb-3');
+    if (fromPositionDivElement && !document.getElementById('discardWarning')) {
+        const warning = document.createElement('div');
+        warning.id = 'discardWarning';
+        warning.className = 'alert alert-warning mt-2';
+        warning.innerHTML = '<strong>⚠️ Warning:</strong> This will mark the tire as DISCARDED and SCRAPPED. This action cannot be undone.';
+        fromPositionDivElement.parentNode.insertBefore(warning, fromPositionDivElement.nextSibling);
+    }
+    
+    // Filter from positions
+    filterFromPositions.call(document.getElementById('fromVehicleSelect') || {value: ''});
+    
+    console.log('=== setupDiscardForm END ===');
+}
+
+// ========== EVENT HANDLERS ==========
+
+// Handle From Position change
+function handleFromPositionChange() {
+    console.log('handleFromPositionChange called');
+    const selectedOption = this.options[this.selectedIndex];
+    const isNewMount = selectedOption.value === 'NEW_MOUNT';
+    const newTireSelection = document.getElementById('newTireSelection');
+    const newTireSelect = document.getElementById('newTireSelect');
+    const selectedTireId = document.getElementById('selectedTireId');
+    
+    if (isNewMount && currentOperation === 'mount') {
+        console.log('New mount selected');
+        // Show tire selection for new mounts
+        if (newTireSelection) newTireSelection.style.display = 'block';
+        if (newTireSelect) newTireSelect.required = true;
+        
+        // Clear auto-selected tire
+        if (selectedTireId) selectedTireId.value = '';
+        
+        // For new mounts, filter work orders by TO vehicle
+        const toVehicleId = document.getElementById('toVehicleSelect')?.value;
+        if (toVehicleId) {
+            filterWorkOrdersByVehicle(toVehicleId);
+        }
+    } else {
+        console.log('Existing position selected');
+        // Hide tire selection for existing mounts
+        if (newTireSelection) newTireSelection.style.display = 'none';
+        if (newTireSelect) newTireSelect.required = false;
+        
+        // Auto-set tire from position selection
+        if (selectedOption.dataset.tire) {
+            if (selectedTireId) selectedTireId.value = selectedOption.dataset.tire;
+        }
+        
+        // Filter work orders for the from_vehicle
+        if (selectedOption.dataset.vehicle) {
+            filterWorkOrdersByVehicle(selectedOption.dataset.vehicle);
+        }
+        
+        // Filter inspections for this tire
+        filterInspections();
+    }
+}
+
+// Handle new tire selection
+function handleNewTireSelect() {
+    console.log('handleNewTireSelect called, value:', this.value);
+    const selectedTireId = document.getElementById('selectedTireId');
+    if (selectedTireId) selectedTireId.value = this.value;
+    
+    // Also filter inspections for this tire
+    filterInspections();
+}
+
+// Handle To Position change
+function handleToPositionChange() {
+    console.log('=== handleToPositionChange START ===');
+    console.log('Current operation:', currentOperation);
+    
+    const selectedOption = this.options[this.selectedIndex];
+    const isDiscard = selectedOption.value === 'DISCARD';
+    const reasonForRemoval = document.getElementById('reasonForRemoval');
+    const reasonRequired = document.getElementById('reasonRequired');
+    
+    console.log('Selected option value:', selectedOption.value);
+    console.log('isDiscard:', isDiscard);
+    
+    if (isDiscard && currentOperation === 'move') {
+        console.log('Discard selected in move operation');
+        // Make reason required
+        if (reasonForRemoval) {
+            reasonForRemoval.required = true;
+            reasonForRemoval.placeholder = 'Required: Reason for discarding (e.g., worn out, damaged, etc.)';
+        }
+        
+        if (reasonRequired) {
+            reasonRequired.style.display = 'inline';
+        }
+        
+        // Add discard warning
+        if (!document.getElementById('discardWarning')) {
+            const warning = document.createElement('div');
+            warning.id = 'discardWarning';
+            warning.className = 'alert alert-warning mt-2';
+            warning.innerHTML = '<strong>⚠️ Warning:</strong> This will mark the tire as DISCARDED and SCRAPPED. This action cannot be undone.';
+            this.parentNode.appendChild(warning);
+        }
+    } else {
+        console.log('Normal position selected');
+        // Make reason optional
+        if (reasonForRemoval) {
+            reasonForRemoval.required = false;
+            reasonForRemoval.placeholder = 'e.g., Wear, Damage, Rotation';
+        }
+        
+        if (reasonRequired) {
+            reasonRequired.style.display = 'none';
+        }
+        
+        // Remove discard warning
+        const warning = document.getElementById('discardWarning');
+        if (warning) {
+            warning.remove();
+        }
+    }
+    
+    console.log('=== handleToPositionChange END ===');
+}
+
+// ========== FORM VALIDATION ==========
+
+// Form validation before submit
+document.getElementById('assignmentForm').addEventListener('submit', function(e) {
+    console.log('=== FORM SUBMISSION STARTED ===');
+    console.log('Current operation:', currentOperation);
+    
+    // ADDED: Debug all form fields before submission
+    console.log('=== PRE-SUBMIT FORM VALUES ===');
+    const form = this;
+    const formData = new FormData(form);
+    for (let [key, value] of formData.entries()) {
+        console.log(`${key}: ${value}`);
+    }
+    
+    // CRITICAL: Check toPositionSelect value before submit
+    const toPositionSelect = document.getElementById('toPositionSelect');
+    if (toPositionSelect) {
+        console.log('PRE-SUBMIT: toPositionSelect.value =', toPositionSelect.value);
+        console.log('PRE-SUBMIT: toPositionSelect.selectedIndex =', toPositionSelect.selectedIndex);
+        console.log('PRE-SUBMIT: toPositionSelect.options =', Array.from(toPositionSelect.options).map(opt => ({
+            value: opt.value,
+            text: opt.text,
+            selected: opt.selected
+        })));
+    }
+    
+    // Get ALL form values for debugging
+    const formDataFinal = new FormData(this);
+    console.log('=== ALL FORM DATA ===');
+    for (let [key, value] of formDataFinal.entries()) {
+        console.log(`${key}: ${value}`);
+    }
+    
+    // Get specific values
+    const fromPositionValue = document.getElementById('fromPositionSelect')?.value || '';
+    const tireId = document.getElementById('selectedTireId')?.value || '';
+    const toPositionSelectElement = document.getElementById('toPositionSelect');
+    const toPositionValue = toPositionSelectElement?.value || '';
+    const reasonForRemoval = document.getElementById('reasonForRemoval')?.value?.trim() || '';
+    const workOrderValue = document.getElementById('workOrderSelect')?.value || '';
+    
+    console.log('=== KEY VALUES ===');
+    console.log('fromPositionValue:', fromPositionValue);
+    console.log('tireId:', tireId);
+    console.log('toPositionValue:', toPositionValue, '(Type:', typeof toPositionValue, ')');
+    console.log('reasonForRemoval:', reasonForRemoval);
+    console.log('workOrderValue:', workOrderValue);
+    console.log('discardFlag:', document.getElementById('discardFlag')?.value);
+    
+    // Operation-specific validation
+    if (currentOperation === 'mount') {
+        console.log('=== MOUNT OPERATION VALIDATION ===');
+        
+        // For mount operation
+        if (!tireId) {
+            console.log('ERROR: No tire selected for mount');
+            e.preventDefault();
+            alert('Please select a tire to mount');
+            document.getElementById('newTireSelect')?.focus();
+            return;
+        }
+        
+        // Check if selected tire is scrapped
+        const newTireSelect = document.getElementById('newTireSelect');
+        if (newTireSelect) {
+            const selectedOption = newTireSelect.options[newTireSelect.selectedIndex];
+            if (selectedOption.disabled) {
+                console.log('ERROR: Trying to mount scrapped tire');
+                e.preventDefault();
+                alert('Cannot mount a scrapped tire!');
+                return;
+            }
+        }
+        
+        // Check if to position is selected and not DISCARD
+        if (!toPositionValue || toPositionValue === 'DISCARD') {
+            console.log('ERROR: Invalid destination position for mount');
+            e.preventDefault();
+            alert('Please select a destination position for mounting');
+            return;
+        }
+        
+        console.log('=== MOUNT VALIDATION PASSED ===');
+    } 
+    else if (currentOperation === 'discard') {
+        console.log('=== DISCARD OPERATION VALIDATION ===');
+        
+        // For discard operation
+        if (!tireId) {
+            console.log('ERROR: No tire selected for discard');
+            e.preventDefault();
+            alert('Please select a position with a tire to discard');
+            return;
+        }
+        
+        if (!reasonForRemoval) {
+            console.log('ERROR: No reason provided for discard');
+            e.preventDefault();
+            alert('Please provide a reason for discarding the tire.');
+            document.getElementById('reasonForRemoval')?.focus();
+            return;
+        }
+        
+        // Confirm discard action
+        if (!confirm('⚠️ FINAL WARNING: This will mark the tire as DISCARDED and SCRAPPED.\n\nThe tire will be removed from service permanently.\n\nAre you absolutely sure?')) {
+            console.log('User cancelled discard operation');
+            e.preventDefault();
+            return;
+        }
+        
+        console.log('=== DISCARD VALIDATION PASSED ===');
+    }
+    else {
+        // For move operation
+        console.log('=== MOVE OPERATION VALIDATION ===');
+        
+        if (!tireId) {
+            console.log('ERROR: No tire selected for move');
+            e.preventDefault();
+            alert('Please select a position with a tire to move');
+            return;
+        }
+        
+        if (!toPositionValue) {
+            console.log('ERROR: No destination position selected');
+            e.preventDefault();
+            alert('Please select a destination position');
+            return;
+        }
+        
+        if (toPositionValue === 'DISCARD') {
+            // Discard from move operation
+            if (!reasonForRemoval) {
+                console.log('ERROR: No reason for discard in move operation');
+                e.preventDefault();
+                alert('Please provide a reason for discarding the tire.');
+                document.getElementById('reasonForRemoval')?.focus();
+                return;
+            }
+            
+            // Confirm discard action
+            if (!confirm('⚠️ FINAL WARNING: This will mark the tire as DISCARDED and SCRAPPED.\n\nThe tire will be removed from service permanently.\n\nAre you absolutely sure?')) {
+                console.log('User cancelled discard operation');
+                e.preventDefault();
+                return;
+            }
+        } else {
+            // Normal move
+            const fromVehicle = document.getElementById('fromVehicleSelect')?.value;
+            const toVehicle = document.getElementById('toVehicleSelect')?.value;
+            
+            // If moving between vehicles, confirm
+            if (fromVehicle && toVehicle && fromVehicle !== toVehicle) {
+                if (!confirm('Moving tire between different vehicles. Continue?')) {
+                    console.log('User cancelled move between vehicles');
+                    e.preventDefault();
+                    return;
+                }
+            }
+        }
+        
+        console.log('=== MOVE VALIDATION PASSED ===');
+    }
+    
+    // Final check for work order
+    if (!workOrderValue) {
+        console.log('ERROR: No work order selected');
+        e.preventDefault();
+        alert('Please select a work order');
+        document.getElementById('workOrderSelect')?.focus();
+        return;
+    }
+    
+    console.log('=== FORM SUBMISSION APPROVED ===');
+    // Form will submit if we get here
+});
+
+// ========== UTILITY FUNCTIONS ==========
+
+// Table search function
+function tableSearch() {
+    let input = document.getElementById("searchInput");
+    let filter = input.value.toUpperCase();
+    let table = document.getElementsByClassName("table")[0];
+    let tr = table.getElementsByTagName("tr");
+
+    for (let i = 0; i < tr.length; i++) {
+        let td = tr[i].getElementsByTagName("td")[1];
+        if (td) {
+            let txtValue = td.textContent || td.innerText;
+            if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                tr[i].style.display = "";
+            } else {
+                tr[i].style.display = "none";
+            }
+        }
+    }
+}
+
+// Confirm delete function
+function confirmDelete(message) {
+    return confirm(message || 'Are you sure you want to delete this?');
+}
+</script>
+
+<style>
+/* Operation buttons */
+.operation-buttons {
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.operation-btn {
+    padding: 10px 20px;
+    border: 2px solid transparent;
+    border-radius: 5px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    flex: 1;
+    max-width: 200px;
+}
+
+.operation-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.operation-btn.active {
+    border-color: currentColor;
+    font-weight: bold;
+}
+
+/* Operation indicator */
+#operationIndicator {
+    border-left: 4px solid;
+}
+
+/* Optional styling for discarded rows */
+.table-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+}
+.table-danger:hover {
+    background-color: rgba(220, 53, 69, 0.2);
+}
+
+/* Style for disabled options */
+select option:disabled {
+    color: #999;
+    font-style: italic;
+}
+
+/* Style for special options */
+option[data-mount-new="true"] {
+    color: #0d6efd;
+    font-weight: bold;
+    background-color: #e7f1ff;
+}
+
+option[data-discard="true"] {
+    color: #dc3545;
+    font-weight: bold;
+    background-color: #fff3cd;
+}
+
+/* Style for new tire selection */
+#newTireSelection {
+    transition: all 0.3s ease;
+}
+
+/* Badge styles */
+.badge {
+    font-size: 0.85em;
+    padding: 4px 8px;
+}
+
+/* Table alignment */
+.table th:first-child,
+.table td:first-child {
+    text-align: center;
+}
+</style>
+{% endblock %}

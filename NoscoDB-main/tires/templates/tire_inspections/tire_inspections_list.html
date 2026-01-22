@@ -1,0 +1,756 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Tire Inspections - URES System{% endblock %}
+
+{% block page_title %}All Tire Inspections{% endblock %}
+
+{% block page_actions %}
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+        + Add Tire Inspection
+    </button>
+    
+    <a class="btn btn-primary" href="{% url 'tire_assignment_list' %}?create=true&work_order={{work_order}}">
+       -> Go to Assignments
+    </a>
+    <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#bulkUpdateModal">
+        Bulk Tire Update
+    </button>
+{% endblock %}
+
+{% block content %}
+
+    <!-- Filter Form -->
+    <form method="get" action="{% url 'tire_inspections_list' %}" class="mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Tire</label>
+                <select name="tire_filter" class="form-control">
+                    <option value="">All Tires</option>
+                    {% for tire in tires %}
+                        <option value="{{ tire.id }}" {% if tire_filter == tire.id|stringformat:"i" %}selected{% endif %}>
+                            {{ tire.serial_number }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">Axle Type</label>
+                <select name="axle_type_filter" class="form-control">
+                    <option value="">All Axle Types</option>
+                    <option value="STEERING" {% if axle_type_filter == "STEERING" %}selected{% endif %}>Steering</option>
+                    <option value="DRIVE" {% if axle_type_filter == "DRIVE" %}selected{% endif %}>Drive</option>
+                    <option value="TRAILER" {% if axle_type_filter == "TRAILER" %}selected{% endif %}>Trailer</option>
+                    <option value="LIFTABLE" {% if axle_type_filter == "LIFTABLE" %}selected{% endif %}>Liftable</option>
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">Inspector</label>
+                <select name="inspector_filter" class="form-control">
+                    <option value="">All Inspectors</option>
+                    {% for employee in employees %}
+                        <option value="{{ employee.id }}" {% if inspector_filter == employee.id|stringformat:"i" %}selected{% endif %}>
+                            {{ employee.first_name }} {{ employee.last_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">Wear Type</label>
+                <select name="wear_filter" class="form-control">
+                    <option value="">All Wear Types</option>
+                    {% for wear_type in wear_types %}
+                        <option value="{{ wear_type.id }}" {% if wear_filter == wear_type.id|stringformat:"i" %}selected{% endif %}>
+                            {{ wear_type.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">Work Order</label>
+                <select name="work_order_filter" class="form-control">
+                    <option value="">All Work Orders</option>
+                    {% for work_order in work_orders %}
+                        <option value="{{ work_order.id }}" {% if work_order_filter == work_order.id|stringformat:"i" %}selected{% endif %}>
+                            {{ work_order.work_order_number }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary">Apply Filters</button>
+                <a href="{% url 'tire_inspections_list' %}" class="btn btn-secondary">Clear</a>
+            </div>
+        </div>
+    </form>
+
+    <!-- Active Filters Display -->
+    {% if tire_filter or axle_type_filter or inspector_filter or wear_filter %}
+    <div class="alert alert-info d-flex justify-content-between align-items-center">
+        <div>
+            <strong>Active Filters:</strong>
+            {% if tire_filter %} 
+                {% for tire in tires %}
+                    {% if tire_filter == tire.id|stringformat:"i" %}
+                        <span class="badge bg-primary">Tire: {{ tire.serial_number }}</span>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+            {% if axle_type_filter %}
+                <span class="badge bg-primary">Axle Type: {{ axle_type_filter }}</span>
+            {% endif %}
+            {% if inspector_filter %}
+                {% for employee in employees %}
+                    {% if inspector_filter == employee.id|stringformat:"i" %}
+                        <span class="badge bg-primary">Inspector: {{ employee.first_name }} {{ employee.last_name }}</span>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+            {% if wear_filter %}
+                {% for wear_type in wear_types %}
+                    {% if wear_filter == wear_type.id|stringformat:"i" %}
+                        <span class="badge bg-primary">Wear: {{ wear_type.name }}</span>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        </div>
+        <a href="{% url 'tire_inspections_list' %}" class="btn btn-sm btn-outline-danger">Clear All</a>
+    </div>
+    {% endif %}
+
+    <!-- Search Box -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <input type="text" placeholder="Search tire inspections..." id="searchInput" class="form-control" onkeyup="tableSearch()">
+        </div>
+        <div class="col-md-6 text-end">
+            <span class="text-muted">
+                Showing {{ tire_inspections.count }} inspection{{ tire_inspections.count|pluralize }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Tire Inspections Table -->
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Tire Serial</th>
+                    <th>Vehicle</th>
+                    <th>Axle Type</th>
+                    <th>Inspector</th>
+                    <th>Odometer</th>
+                    <th>Tread Depth</th>
+                    <th>Pressure</th>
+                    <th>Wear Type</th>
+                    <th>Inspection Date</th>
+                    <th style="text-align:center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inspection in tire_inspections %}
+                    <tr id="row-{{ inspection.id }}">
+                        <td><strong>{{ inspection.tire.serial_number }}</strong></td>
+                        <td>{{ inspection.position.vehicle.license_plate }}</td>
+                        <td>{{ inspection.position.get_axle_type_display }}</td>
+                        <td>{{ inspection.inspector.first_name }} {{ inspection.inspector.last_name }}</td>
+                        <td>{{ inspection.inspection_odometer }}</td>
+                        <td>{{ inspection.tread_depth }} mm</td>
+                        <td>{{ inspection.pressure }} PSI</td>
+                        <td>
+                            <span class="badge bg-secondary">
+                                {{ inspection.wear_id.name }}
+                            </span>
+                        </td>
+                        <td>{{ inspection.created_at|date:"M j, Y" }}</td>
+                        <td style="text-align:center;">
+                            <!-- Edit Button -->
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal-{{ inspection.id }}">
+                                ✏️ Edit
+                            </button>
+
+                            <!-- Details Button -->
+                            <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#detailsModal-{{ inspection.id }}">
+                                👁️ Details
+                            </button>
+                            
+                            <!-- Delete Button -->
+                            <form method="post" action="{% url 'tire_inspections_delete' inspection.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirmDelete('Are you sure you want to delete this tire inspection?')">
+                                    🗑️ Delete
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted py-4">
+                            No tire inspections found. <a href="#" data-bs-toggle="modal" data-bs-target="#createModal">Add the first inspection</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Create Tire Inspection Modal -->
+    <div class="modal fade" id="createModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form method="post" action="{% url 'tire_inspections_create' %}">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add New Tire Inspection</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Vehicle</label>
+                                    <select name="vehicle" id="vehicleToSelect" class="form-select" required onchange="loadTiresForVehicle()">
+                                        <option value="">Select a Vehicle</option>
+                                        {% for vehicle in vehicles %}
+                                            <option value="{{ vehicle.id }}">{{ vehicle.license_plate }} - {{ vehicle.make }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Tire</label>
+                                    <select name="tire" id="tireToSelect" class="form-select" required onchange="autoSelectPosition()">
+                                        <option value="">Select a Tire</option>
+                                        <!-- Will be populated dynamically -->
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Position</label>
+                                    <select name="position" id="positionSelect" class="form-select" required>
+                                        <option value="">Select position</option>
+                                        {% for position in tire_positions %}
+                                            <option value="{{ position.id }}">{{ position.position_name }} ({{ position.get_axle_type_display }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Inspector</label>
+                                    <select name="inspector" class="form-select" required>
+                                        {% if employee_filter %}
+                                            <option value="{{ employee_filter.id }}">{{ employee_filter.first_name }} {{ employee_filter.last_name }}</option>
+                                        {% else %}
+                                            <option value="">Select inspector</option>
+                                            {% for employee in employees %}
+                                                <option value="{{ employee.id }}">{{ employee.first_name }} {{ employee.last_name }}</option>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Inspection Odometer</label>
+                                    <input type="number" name="inspection_odometer" class="form-control" value="{{ inspection_odometer }}" required>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Tread Depth (mm)</label>
+                                    <input type="number" step="0.01" name="tread_depth" class="form-control" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Pressure (PSI)</label>
+                                    <input type="number" step="0.01" name="pressure" class="form-control" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Wear Type</label>
+                                    <select name="wear_id" class="form-select" required>
+                                        <option value="">Select wear type</option>
+                                        {% for wear_type in wear_types %}
+                                            <option value="{{ wear_type.id }}">{{ wear_type.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <input type="hidden" name="work_order_id" id="workOrderIdInput" value="{{ work_order }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">Create Inspection</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- BULK TIRE UPDATE MODAL -->
+<div class="modal fade" id="bulkUpdateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bulk Tire Update</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Hidden fields for work order data -->
+                <input type="hidden" id="bulkWorkOrderId" value="">
+                <input type="hidden" id="bulkInspectorId" value="">
+                <input type="hidden" id="bulkVehicleId" value="">
+
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Vehicle</label>
+                        <input id="bulkVehicle" class="form-control" type="text" value="" readonly>
+                        <small class="text-muted">Vehicle from work order</small>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Inspector</label>
+                        <input id="bulkInspector" class="form-control" type="text" value="" readonly>
+                        <small class="text-muted">Inspector from work order</small>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Odometer</label>
+                        <input id="bulkOdometer" class="form-control" type="number" value="" readonly>
+                        <small class="text-muted">Odometer from work order</small>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <strong>Vehicle Tires:</strong> Below are all tires currently mounted on this vehicle. Update tread depth and pressure as needed.
+                </div>
+
+                <div class="table-responsive mt-3">
+                    <table class="table table-bordered table-striped align-middle">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Position</th>
+                                <th>Current Serial</th>
+                                <th>Current Tread (mm)</th>
+                                <th>Current Pressure (PSI)</th>
+                                <th>New Tread Depth (mm)</th>
+                                <th>New Pressure (PSI)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulkTireTable">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">
+                                    Loading tires for vehicle...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- NEW COST + CLOSE WORK ORDER SECTION -->
+                <div class="row mt-4">
+                    <!-- Cost Field -->
+                    <div class="col-md-6">
+                        <label class="form-label">Cost</label>
+                        <input id="bulkCost" name="cost" type="number" step="0.01" class="form-control">
+                        <small class="text-muted">Enter the total cost for this inspection</small>
+                    </div>
+
+                    <!-- Close Work Order Checkbox -->
+                    <div class="col-md-6 d-flex align-items-center">
+                        <div class="form-check mt-4">
+                            <input class="form-check-input" type="checkbox" id="bulkCloseWorkOrder">
+                            <label class="form-check-label" for="bulkCloseWorkOrder">
+                                Close Work Order After Saving?
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+            </div> <!-- END modal-body -->
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-success" onclick="submitBulkUpdate()">Save All Tire Updates</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Edit and Details Modals for each inspection -->
+    {% for inspection in tire_inspections %}
+        <!-- Edit Modal -->
+        <div class="modal fade" id="editModal-{{ inspection.id }}">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <form method="post" action="{% url 'tire_inspections_update' inspection.id %}">
+                        {% csrf_token %}
+                        <div class="modal-header">
+                            <h5 class="modal-title">Update Tire Inspection</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Tire</label> 
+                                        <select name="tire" class="form-select" required>
+                                            <option value="">Select a tire</option>
+                                            {% for tire in tires %}
+                                                <option value="{{ tire.id }}" {% if inspection.tire.id == tire.id %} selected {% endif %}>{{ tire.serial_number }} - {{ tire.pattern.brand_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Position</label>
+                                        <select name="position" class="form-select" required>
+                                            <option value="">Select position</option>
+                                            {% for position in tire_positions %}
+                                                <option value="{{ position.id }}" {% if inspection.position.id == position.id %} selected {% endif %}>{{ position.position_name }} ({{ position.get_axle_type_display }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Inspector</label>
+                                        <select name="inspector" class="form-select" required>
+                                            <option value="">Select inspector</option>
+                                            {% for employee in employees %}
+                                                <option value="{{ employee.id }}" {% if inspection.inspector.id == employee.id %} selected {% endif %}>{{ employee.first_name }} {{ employee.last_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Inspection Odometer</label>
+                                        <input type="number" name="inspection_odometer" class="form-control" value="{{ inspection.inspection_odometer }}" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Tread Depth (mm)</label>
+                                        <input type="number" step="0.01" name="tread_depth" class="form-control" value="{{ inspection.tread_depth }}" required>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Pressure (PSI)</label>
+                                        <input type="number" step="0.01" name="pressure" class="form-control" value="{{ inspection.pressure }}" required>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Wear Type</label>
+                                        <select name="wear_id" class="form-select" required>
+                                            <option value="">Select wear type</option>
+                                            {% for wear_type in wear_types %}
+                                                <option value="{{ wear_type.id }}" {% if inspection.wear_id.id == wear_type.id %} selected {% endif %}>{{ wear_type.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <!-- New fields for calculations -->
+                                    <!-- <div class="mb-3">
+                                        <label class="form-label">Consumption Rate</label>
+                                        <input type="number" step="0.01" name="consumption_rate" class="form-control" value="{{ inspection.consumption_rate|default:'' }}">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Remaining Traveling Distance</label>
+                                        <input type="number" name="remaining_traveling_distance" class="form-control" value="{{ inspection.remaining_traveling_distance|default:'' }}">
+                                    </div> -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-success">Update Inspection</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Modal -->
+        <div class="modal fade" id="detailsModal-{{ inspection.id }}">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Tire Inspection Details - {{ inspection.tire.serial_number }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Tire Serial:</strong> {{ inspection.tire.serial_number }}</p>
+                                <p><strong>Pattern:</strong> {{ inspection.tire.pattern.brand_name }} - {{ inspection.tire.pattern.pattern_code }}</p>
+                                <p><strong>Vehicle:</strong> {{ inspection.position.vehicle.license_plate }}</p>
+                                <p><strong>Position:</strong> {{ inspection.position.position_name }}</p>
+                                <p><strong>Axle Type:</strong> {{ inspection.position.get_axle_type_display }}</p>
+                                <p><strong>Inspector:</strong> {{ inspection.inspector.first_name }} {{ inspection.inspector.last_name }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Inspection Odometer:</strong> {{ inspection.inspection_odometer }}</p>
+                                <p><strong>Tread Depth:</strong> {{ inspection.tread_depth }} mm</p>
+                                <p><strong>Pressure:</strong> {{ inspection.pressure }} PSI</p>
+                                <p><strong>Wear Type:</strong> {{ inspection.wear_id.name }}</p>
+                                <p><strong>Wear Cause:</strong> {{ inspection.wear_id.wear_common_cause }}</p>
+                                <p><strong>Inspection Date:</strong> {{ inspection.created_at|date:"M j, Y H:i" }}</p>
+                            </div>
+                        </div>
+                        
+                        <!-- ALL CALCULATED FIELDS SECTION -->
+                        <hr>
+                        <h6>Calculated Metrics</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Consumption Rate:</strong> {{ inspection.consumption_rate|floatformat:2 }} mm/10,000 km</p>
+                                <p><strong>Remaining Traveling Distance:</strong> {{ inspection.remaining_traveling_distance|floatformat:0 }} km</p>
+                                <p><strong>Cost per mm Tread Depth:</strong> ${{ inspection.cost_per_mm_tread_depth|floatformat:2 }}</p>
+                                <p><strong>Cost per 1,000 Km:</strong> ${{ inspection.cost_per_1000_km_travel|floatformat:2 }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Fuel Consumption Increase:</strong> {{ inspection.fuel_consumption_increase|floatformat:2 }} L/100 km</p>
+                                <p><strong>Fuel Loss Caused:</strong> {{ inspection.fuel_loss_caused|floatformat:2 }} L</p>
+                                <p><strong>Current Tire Value:</strong> ${{ inspection.current_tire_value|floatformat:2 }}</p>
+                                <p><strong>Balance Traveling Distance:</strong> {{ inspection.balance_traveling_distance|floatformat:0 }} km</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Tire Pattern Reference Data -->
+                        <hr>
+                        <h6>Reference Data</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Initial Tread Depth:</strong> {{ inspection.tire.pattern.initial_tread_depth }} mm</p>
+                                <p><strong>Discarding Tread Depth:</strong> {{ inspection.tire.pattern.discarding_tread_depth }} mm</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Ideal Tire Pressure:</strong> {{ inspection.tire.pattern.ideal_tire_pressure }} PSI</p>
+                                <p><strong>Tire Purchase Price:</strong> ${{ inspection.tire.purchase_cost }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Simple data storage
+const tirePositionMap = {{ tire_position_map|safe }};
+const vehicleTireData = {{ vehicle_tire_data|safe }};
+
+// Utility functions
+function tableSearch() {
+    let input = document.getElementById("searchInput");
+    let filter = input.value.toUpperCase();
+    let table = document.getElementsByClassName("table")[0];
+    let tr = table.getElementsByTagName("tr");
+
+    for (let i = 0; i < tr.length; i++) {
+        let td = tr[i].getElementsByTagName("td")[0];
+        if (td) {
+            let txtValue = td.textContent || td.innerText;
+            if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                tr[i].style.display = "";
+            } else {
+                tr[i].style.display = "none";
+            }
+        }
+    }
+}
+
+function confirmDelete(message) {
+    return confirm(message || 'Are you sure you want to delete this record?');
+}
+
+// Single inspection form functions
+function loadTiresForVehicle() {
+    const vehicleSelect = document.getElementById("vehicleToSelect");
+    const tireSelect = document.getElementById("tireToSelect");
+    const selectedVehicle = vehicleSelect.value;
+
+    // Clear tire dropdown
+    tireSelect.innerHTML = '<option value="">Select a Tire</option>';
+
+    if (selectedVehicle && vehicleTireData[selectedVehicle]) {
+        const tires = vehicleTireData[selectedVehicle];
+        tires.forEach(tire => {
+            const option = document.createElement("option");
+            option.value = tire.tire_id;
+            option.textContent = `${tire.serial} - Position: ${tire.position}`;
+            tireSelect.appendChild(option);
+        });
+    }
+}
+
+function autoSelectPosition() {
+    const tireSelect = document.getElementById("tireToSelect");
+    const positionSelect = document.getElementById("positionSelect");
+    const tireId = tireSelect.value;
+
+    if (tireId && tirePositionMap[tireId]) {
+        positionSelect.value = tirePositionMap[tireId];
+    }
+}
+
+// Bulk update functions
+function loadBulkVehicleTires(vehicleId = null) {
+    const vehicleIdToUse = vehicleId || document.getElementById("bulkVehicleId").value;
+    const tbody = document.getElementById("bulkTireTable");
+    
+    if (!vehicleIdToUse) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No vehicle selected</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Loading tires...</td></tr>';
+
+    if (!vehicleTireData[vehicleIdToUse]) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No tires found for this vehicle</td></tr>';
+        return;
+    }
+
+    const tires = vehicleTireData[vehicleIdToUse];
+    
+    if (tires.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No tires mounted on this vehicle</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = ''; // Clear loading message
+    
+    tires.forEach(tire => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td>${tire.position || 'N/A'}</td>
+            <td>${tire.serial || 'N/A'}</td>
+            <td>${tire.tread || '0'} mm</td>
+            <td>${tire.pressure || '0'} PSI</td>
+            <td>
+                <input class="form-control" type="number" step="0.01"
+                       name="new_tread_${tire.tire_id}" 
+                       placeholder="Enter new tread"
+                       value="${tire.tread || ''}">
+            </td>
+            <td>
+                <input class="form-control" type="number" step="0.01"
+                       name="new_pressure_${tire.tire_id}" 
+                       placeholder="Enter new pressure"
+                       value="${tire.pressure || ''}">
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function submitBulkUpdate() {
+    const vehicleId = document.getElementById("bulkVehicleId").value;
+    const workOrderId = document.getElementById("bulkWorkOrderId").value;
+    const inspectorId = document.getElementById("bulkInspectorId").value;
+    const formData = new FormData();
+
+    formData.append("cost", document.getElementById("bulkCost").value);
+    formData.append("close_work_order", 
+    document.getElementById("bulkCloseWorkOrder").checked ? "on" : "");
+
+
+    formData.append("vehicle_id", vehicleId);
+    formData.append("work_order_id", workOrderId);
+    formData.append("inspector_id", inspectorId);
+    formData.append("odometer", document.getElementById("bulkOdometer").value);
+
+    if (vehicleTireData[vehicleId]) {
+        vehicleTireData[vehicleId].forEach(tire => {
+            const treadInput = document.querySelector(`[name="new_tread_${tire.tire_id}"]`);
+            const pressureInput = document.querySelector(`[name="new_pressure_${tire.tire_id}"]`);
+            
+            if (treadInput) formData.append(`tire_${tire.tire_id}_new_tread`, treadInput.value);
+            if (pressureInput) formData.append(`tire_${tire.tire_id}_new_pressure`, pressureInput.value);
+        });
+    }
+
+    fetch("{% url 'bulk_tire_update' %}", {
+        method: "POST",
+        body: formData,
+        headers: {
+            "X-CSRFToken": "{{ csrf_token }}"
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert("Bulk tire updates saved successfully!");
+        location.reload();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error saving bulk updates');
+    });
+}
+
+// Page initialization
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Auto-open create modal
+    if (urlParams.get('create') === 'true') {
+        const createModal = new bootstrap.Modal(document.getElementById('createModal'));
+        createModal.show();
+    }
+    
+    // Auto-open bulk modal with pre-filled data
+    if (urlParams.get('open_bulk_modal') === 'true') {
+        const bulkData = sessionStorage.getItem('bulkWorkOrderData');
+        if (bulkData) {
+            const data = JSON.parse(bulkData);
+            
+            // Pre-fill the bulk modal fields
+            document.getElementById('bulkWorkOrderId').value = data.work_order_id || '';
+            document.getElementById('bulkInspectorId').value = data.inspector_id || '';
+            document.getElementById('bulkVehicleId').value = data.vehicle_id || '';
+            document.getElementById('bulkOdometer').value = data.odometer || '';
+            
+            // Display vehicle and inspector info
+            if (data.vehicle_license && data.vehicle_id) {
+                document.getElementById('bulkVehicle').value = `${data.vehicle_license} (Vehicle ID: ${data.vehicle_id})`;
+            } else if (data.vehicle_id) {
+                document.getElementById('bulkVehicle').value = `Vehicle ID: ${data.vehicle_id}`;
+            }
+            
+            if (data.inspector_name) {
+                document.getElementById('bulkInspector').value = data.inspector_name;
+            } else {
+                document.getElementById('bulkInspector').value = `Employee ID: ${data.inspector_id}`;
+            }
+            
+            // Auto-load tires for the vehicle
+            if (data.vehicle_id) {
+                loadBulkVehicleTires(data.vehicle_id);
+            }
+            
+            // Open the bulk modal
+            const bulkModal = new bootstrap.Modal(document.getElementById('bulkUpdateModal'));
+            bulkModal.show();
+            
+            // Clean up
+            sessionStorage.removeItem('bulkWorkOrderData');
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+        }
+    }
+});
+</script>
+{% endblock %}
