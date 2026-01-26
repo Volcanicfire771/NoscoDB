@@ -16,14 +16,15 @@
     <form method="get" action="{% url 'maintenance_records_list' %}" class="mb-4">
         <div class="row g-3 align-items-end">
             <div class="col-md-3">
-                <label class="form-label">Vehicle</label>
-                <select name="vehicle_filter" class="form-control">
-                    <option value="">All Vehicles</option>
-                    {% for vehicle in vehicles %}
-                        <option value="{{ vehicle.id }}" {% if request.GET.vehicle_filter == vehicle.id|stringformat:"i" %}selected{% endif %}>
-                            {{ vehicle.license_plate }}
+                <label class="form-label">Tire</label>
+                <select name="tire_filter" class="form-control">
+                    <option value="">All Tires</option>
+                    {% for tire in tires %}
+                        <option value="{{ tire.id }}" {% if request.GET.tire_filter == tire.id|stringformat:"i" %}selected{% endif %}>
+                            {{ tire.serial_number }}
                         </option>
                     {% endfor %}
+ 
                 </select>
             </div>
             
@@ -59,14 +60,14 @@
     </form>
 
     <!-- Active Filters Display -->
-    {% if request.GET.vehicle_filter or request.GET.service_type_filter or request.GET.service_provider_filter %}
+    {% if request.GET.tire_filter or request.GET.service_type_filter or request.GET.service_provider_filter %}
     <div class="alert alert-info d-flex justify-content-between align-items-center">
         <div>
             <strong>Active Filters:</strong>
-            {% if request.GET.vehicle_filter %} 
-                {% for vehicle in vehicles %}
-                    {% if request.GET.vehicle_filter == vehicle.id|stringformat:"i" %}
-                        <span class="badge bg-primary">Vehicle: {{ vehicle.license_plate }}</span>
+            {% if request.GET.tire_filter %} 
+                {% for tire in tires %}
+                    {% if request.GET.tire_filter == tire.id|stringformat:"i" %}
+                        <span class="badge bg-primary">Tire: {{ tire.serial_number }}</span>
                     {% endif %}
                 {% endfor %}
             {% endif %}
@@ -106,7 +107,7 @@
         <table class="table table-striped table-hover">
             <thead class="table-dark">
                 <tr>
-                    <th>Vehicle</th>
+                    <th>Tire</th>
                     <th>Service Type</th>
                     <th>Service Date</th>
                     <th>Service Mileage</th>
@@ -118,7 +119,7 @@
             <tbody>
                 {% for maintenance_record in maintenance_records %}
                     <tr id="row-{{ maintenance_record.id }}">
-                        <td><strong>{{ maintenance_record.vehicle.license_plate }}</strong></td>
+                        <td><strong>{{ maintenance_record.tire.serial_number }}</strong></td>
                         <td>{{ maintenance_record.service_type.service_name }}</td>
                         <td>{{ maintenance_record.service_date|date:"M j, Y" }}</td>
                         <td>{{ maintenance_record.service_mileage }}</td>
@@ -167,11 +168,11 @@
                     </div>
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label class="form-label">Vehicle</label> 
-                            <select name="vehicle" class="form-select" required>
-                                <option value="">Select a vehicle</option>
-                                {% for vehicle in vehicles %}
-                                    <option value="{{ vehicle.id }}">{{ vehicle.license_plate }}</option>
+                            <label class="form-label">Tire</label> 
+                            <select name="tire" class="form-select" required>
+                                <option value="">Select a tire</option>
+                                {% for tire in tires %}
+                                    <option value="{{ tire.id }}">{{ tire.serial_number }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -240,11 +241,11 @@
                         
                         <div class="modal-body">
                             <div class="mb-3">
-                                <label class="form-label">Vehicle</label> 
-                                <select name="vehicle" class="form-select" required>
-                                    <option value="">Select a vehicle</option>
-                                    {% for vehicle in vehicles %}
-                                        <option value="{{ vehicle.id }}" {% if maintenance_record.vehicle.id == vehicle.id %} selected {% endif %}>{{ vehicle.license_plate }}</option>
+                                <label class="form-label">Tire</label> 
+                                <select name="tire" class="form-select" required>
+                                    <option value="">Select a tire</option>
+                                    {% for tire in tires %}
+                                        <option value="{{ tire.id }}" {% if maintenance_record.tire.id == tire.id %} selected {% endif %}>{{ tire.serial_number }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -304,7 +305,7 @@
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Maintenance Record Details - {{ maintenance_record.vehicle.license_plate }}</h5>
+                        <h5 class="modal-title">Maintenance Record Details - {{ maintenance_record.tire.serial_number }}</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">

@@ -115,13 +115,20 @@ class TirePosition(models.Model):
 class Tire(models.Model):
     serial_number = models.CharField(max_length=100, unique=True)
     pattern = models.ForeignKey(TirePattern, on_delete=models.PROTECT)
+    size = models.CharField(max_length=50)
     status = models.ForeignKey(TireStatus, on_delete=models.PROTECT)
     purchase_date = models.DateField()
     purchase_cost = models.DecimalField(max_digits=10, decimal_places=2)
     supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, null=True, blank=True)
     initial_tread_depth = models.DecimalField(max_digits=10, decimal_places=2)
     last_tread_depth = models.DecimalField(max_digits=5, decimal_places=2, null=True)
-    last_pressure = models.DecimalField(max_digits=5, decimal_places=2, null=True)
+    # last_pressure = models.DecimalField(max_digits=5, decimal_places=2, null=True)
+    retread_count = models.IntegerField(null=True, blank=True)
+    maximum_retreads = models.IntegerField(null=True, blank=True)
+    current_position = models.ForeignKey(TirePosition, on_delete=models.SET_NULL, 
+                                     null=True, blank=True, related_name='current_tires')
+    tire_mileage = models.IntegerField(null=True, blank=True)
+    # last_assignment = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True)
     
 
@@ -160,7 +167,7 @@ class WorkOrder(models.Model):
 
 
 class MaintenanceRecord(models.Model):
-    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, 
+    tire = models.ForeignKey(Tire, on_delete=models.CASCADE, 
                               related_name='maintenance_records')
     service_type = models.ForeignKey(ServiceType, on_delete=models.PROTECT)
     service_date = models.DateField()
@@ -171,7 +178,7 @@ class MaintenanceRecord(models.Model):
     notes = models.TextField(blank=True)
     
     def __str__(self):
-        return f"{self.vehicle.license_plate} - {self.service_date}"
+        return f"{self.tire.serial_number} - {self.service_date}"
 
 class TireWearType(models.Model):
     name = models.CharField(max_length=50)
@@ -227,6 +234,9 @@ class TireAssignment(models.Model):
                                   related_name='assignments_to')
     assignment_date = models.DateField()
     removal_date = models.DateField(null=True, blank=True)
+    start_odometer = models.IntegerField()
+    end_odometer = models.IntegerField(null=True, blank=True)
+    removal_mileage = models.IntegerField(null=True, blank=True)
     reason_for_removal = models.TextField(blank=True)
     work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, 
                                  related_name='tire_assignments')

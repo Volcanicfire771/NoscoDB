@@ -69,7 +69,7 @@
                     <th>Vehicle</th>
                     <th>Position Name</th>
                     <th>Axle Number</th>
-                    <th>Wheel Number</th>
+                    <th>Axle Type</th>
                     <th>Tire</th>
                     <th>Is Spare</th>
                     <th style="text-align:center;">Actions</th>
@@ -81,7 +81,9 @@
                         <td><strong>{{ tire_position.vehicle.license_plate }}</strong></td>
                         <td>{{ tire_position.position_name }}</td>
                         <td>{{ tire_position.axle_number }}</td>
-                        <td>{{ tire_position.wheel_number }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ tire_position.get_axle_type_display }}</span>
+                        </td>
                         <td>
                             {% if tire_position.mounted_tire %}
                                 <span class="badge bg-info">{{ tire_position.mounted_tire.serial_number }}</span>
@@ -162,6 +164,17 @@
                         </div>
                         
                         <div class="mb-3">
+                            <label class="form-label">Axle Type</label>
+                            <select name="axle_type" class="form-control" required>
+                                <option value="">Select Axle Type</option>
+                                <option value="STEERING">Steering</option>
+                                <option value="DRIVE">Drive</option>
+                                <option value="TRAILER">Trailer</option>
+                                <option value="LIFTABLE">Liftable</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
                             <label class="form-label">Mounted Tire</label>
                             <select name="mounted_tire" class="form-control">
                                 <option value="">No tire mounted</option>
@@ -233,6 +246,17 @@
                             </div>
                             
                             <div class="mb-3">
+                                <label class="form-label">Axle Type</label>
+                                <select name="axle_type" class="form-control" required>
+                                    <option value="">Select Axle Type</option>
+                                    <option value="STEERING" {% if tire_position.axle_type == "STEERING" %}selected{% endif %}>Steering</option>
+                                    <option value="DRIVE" {% if tire_position.axle_type == "DRIVE" %}selected{% endif %}>Drive</option>
+                                    <option value="TRAILER" {% if tire_position.axle_type == "TRAILER" %}selected{% endif %}>Trailer</option>
+                                    <option value="LIFTABLE" {% if tire_position.axle_type == "LIFTABLE" %}selected{% endif %}>Liftable</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
                                 <label class="form-label">Mounted Tire</label>
                                 <select name="mounted_tire" class="form-control">
                                     <option value="">No tire mounted</option>
@@ -280,6 +304,7 @@
                                 <p><strong>Position Name:</strong> {{ tire_position.position_name }}</p>
                                 <p><strong>Axle Number:</strong> {{ tire_position.axle_number }}</p>
                                 <p><strong>Wheel Number:</strong> {{ tire_position.wheel_number }}</p>
+                                <p><strong>Axle Type:</strong> {{ tire_position.get_axle_type_display }}</p>
                             </div>
                             <div class="col-md-6">
                                 <p><strong>Mounted Tire:</strong> 

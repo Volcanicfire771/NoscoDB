@@ -49,12 +49,7 @@
                             <span class="badge bg-secondary">🔄 Move</span>
                         {% endif %}
                     </td>
-                    <td>
-                        {{ tire_assignment.tire.serial_number }}
-                        {% if tire_assignment.tire.is_scrapped %}
-                            <span class="badge bg-dark">SCRAPPED</span>
-                        {% endif %}
-                    </td>
+                    <td>{{ tire_assignment.tire.serial_number }}</td>
                     <td>
                         {% if tire_assignment.tire_position_from %}
                             {{ tire_assignment.tire_position_from.vehicle.license_plate }} - {{ tire_assignment.tire_position_from.position_name }}
@@ -174,10 +169,8 @@
                                     {% for position in positions_with_tires %}
                                         <option value="{{ position.id }}" 
                                                 data-vehicle="{{ position.vehicle.id }}" 
-                                                data-tire="{{ position.mounted_tire.id }}"
-                                                {% if position.mounted_tire.is_scrapped %}disabled style="color: #999;"{% endif %}>
+                                                data-tire="{{ position.mounted_tire.id }}">
                                             {{ position.position_name }} - {{ position.mounted_tire.serial_number }}
-                                            {% if position.mounted_tire.is_scrapped %}(Scrapped){% endif %}
                                         </option>
                                     {% endfor %}
                                 </select>
@@ -194,10 +187,8 @@
                                     <option value="">Select unmounted tire</option>
                                     {% for tire in unmounted_tires %}
                                         <option value="{{ tire.id }}" 
-                                                data-status="{{ tire.status.status_name }}"
-                                                {% if tire.is_scrapped %}disabled style="color: #999;"{% endif %}>
+                                                data-status="{{ tire.status.status_name }}">
                                             {{ tire.serial_number }} - {{ tire.status.status_name }}
-                                            {% if tire.is_scrapped %}(Scrapped){% endif %}
                                         </option>
                                     {% endfor %}
                                 </select>
@@ -324,10 +315,8 @@
                                 <option value="">Select a tire</option>
                                 {% for tire in tires %}
                                     <option value="{{ tire.id }}" 
-                                            {% if tire_assignment.tire.id == tire.id %}selected{% endif %}
-                                            {% if tire.is_scrapped %}disabled{% endif %}>
+                                            {% if tire_assignment.tire.id == tire.id %}selected{% endif %}>
                                         {{ tire.serial_number }}
-                                        {% if tire.is_scrapped %}(Scrapped){% endif %}
                                     </option>
                                 {% endfor %}
                             </select>
@@ -426,7 +415,6 @@
                             <p><strong>Assignment ID:</strong> {{ tire_assignment.id }}</p>
                             <p><strong>Tire:</strong> {{ tire_assignment.tire.serial_number }}</p>
                             <p><strong>Tire Status:</strong> {{ tire_assignment.tire.status.status_name }}</p>
-                            <p><strong>Tire Scrapped:</strong> {{ tire_assignment.tire.is_scrapped|yesno:"Yes,No" }}</p>
                             
                             {% if tire_assignment.tire_position_from %}
                             <p><strong>From Vehicle:</strong> {{ tire_assignment.tire_position_from.vehicle.license_plate }}</p>

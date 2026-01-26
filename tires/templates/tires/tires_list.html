@@ -89,20 +89,25 @@
                             <small class="text-muted d-block">Pattern</small>
                             <p class="mb-0"><strong>{{ tire.pattern.pattern_code }}</strong></p>
                         </div>
-
                         <div class="row">
                             <div class="col-6">
-                                <small class="text-muted d-block">Initial Tread Depth</small>
-                                <p class="mb-0"><strong>{{ tire.initial_tread_depth }}</strong></p>
+                                <small class="text-muted d-block">Current Position</small>
+                                <p class="mb-0"><strong>
+                                    {% if tire.current_position.position_name %}
+                                        {{ tire.current_position.vehicle.license_plate }} - {{ tire.current_position.position_name }}
+                                    {% else %}
+                                        <span class="text-warning">Not assigned</span>
+                                    {% endif %}
+                                </strong></p>
                             </div>
                             <div class="col-6">
                                 <small class="text-muted d-block">Notes</small>
                                 <p class="mb-0"><strong>{{ tire.notes }}</strong></p>
                             </div>
+                            
                         </div>
 
                         <hr class="my-3">
-
                         <div class="row">
                             <div class="col-6">
                                 <small class="text-muted d-block">Cost</small>
@@ -114,6 +119,10 @@
                                     {% endif %}
                                 </strong></p>
                             </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block">Last Tread Depth</small>
+                                <p class="mb-0"><strong>{{ tire.last_tread_depth }}</strong></p>
+                            </div>
                         </div>
                     </div>
 
@@ -121,6 +130,9 @@
                     <div class="card-footer bg-light border-top">
                         <div class="d-grid gap-2">
                             <!-- View Details Button -->
+                            <!-- <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#detailsModal-{{ tire.id }}">
+                                <i class="bi bi-eye"></i> View Full Details
+                            </button> -->
                             <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#detailsModal-{{ tire.id }}">
                                 <i class="bi bi-eye"></i> View Full Details
                             </button>
@@ -129,7 +141,7 @@
                         <!-- Quick Action Buttons -->
                         <div class="mt-2 d-flex gap-2 flex-wrap">
                             <!-- Edit Button -->
-                            <button type="button" class="btn btn-outline-warning btn-sm flex-fill" data-bs-toggle="modal" data-bs-target="#editModal-{{ tire.id }}">
+                            <button type="button" class="btn btn-outline-warning btn-sm flex-fill" data-bs-toggle="modal" data-bs-target="#editModal-{{ tire.id }}" >
                                 <i class="bi bi-pencil"></i> Edit
                             </button>
 
@@ -176,57 +188,119 @@
                                 <label class="form-label">Serial Number</label>
                                 <input type="text" name="serial_number" class="form-control" required>
                             </div>
-
+                            
                             <div class="mb-3">
                                 <label class="form-label">Pattern <span class="text-danger">*</span></label>
                                 <div class="input-group">
-                                    <select name="pattern" id="patternSelect" class="form-select" required onchange="updatePatternDetails()">
+                                    <select name="pattern" id="createPatternSelect" class="form-select" required onchange="updateCreatePatternDetails()">
                                         <option value="">Select a Pattern</option>
                                         {% for pattern in tire_patterns %}
-                                        <option value="{{ pattern.id }}">{{ pattern.pattern_name }}</option>
+                                        <option value="{{ pattern.id }}"
+                                            {% if tire.pattern.id == pattern.id %}selected{% endif %}>
+                                            {{ pattern.pattern_code }}
+                                        </option>
                                         {% endfor %}
                                     </select>
-                                    <button type="button" class="btn btn-outline-info" onclick="showPatternDetails()" id="patternDetailsBtn" disabled>
+                                    <button type="button" class="btn btn-outline-info" onclick="showCreatePatternDetails()" id="createPatternDetailsBtn" disabled>
                                         <i class="bi bi-info-circle"></i>
                                     </button>
                                 </div>
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label">Supplier <span class="text-danger">*</span></label>
+                                <label class="form-label">Size</label>
+                                <input type="text" name="size" class="form-control" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Status <span class="text-danger">*</span></label>
                                 <div class="input-group">
-                                    <select name="supplier" id="supplierSelect" class="form-select" required onchange="updateSupplierDetails()">
-                                        <option value="">Select a Supplier</option>
-                                        {% for supplier in suppliers %}
-                                        <option value="{{ supplier.id }}">{{ supplier.supplier_name }}</option>
+                                    <select name="status" id="createStatusSelect" class="form-select" required onchange="updateCreateStatusDetails()">
+                                        <option value="">Select a status</option>
+                                        {% for status in tire_statuses %}
+                                        <option value="{{ status.id }}"
+                                            {% if tire.status.id == status.id %}selected{% endif %}>
+                                            {{ status.status_name }}
+                                        </option>
                                         {% endfor %}
                                     </select>
-                                    <button type="button" class="btn btn-outline-info" onclick="showSupplierDetails()" id="supplierDetailsBtn" disabled>
+                                    <button type="button" class="btn btn-outline-info" onclick="showCreateStatusDetails()" id="createStatusDetailsBtn" disabled>
                                         <i class="bi bi-info-circle"></i>
                                     </button>
                                 </div>
                             </div>
+
                             <div class="mb-3">
-                                <label class="form-label">Status <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <select name="status" id="statusSelect" class="form-select" required onchange="updateStatusDetails()">
-                                        <option value="">Select a status</option>
-                                        {% for status in statuses %}
-                                        <option value="{{ status.id }}">{{ status.status_name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                    <button type="button" class="btn btn-outline-info" onclick="showStatusDetails()" id="statusDetailsBtn" disabled>
-                                        <i class="bi bi-info-circle"></i>
-                                    </button>
-                                </div>
+                                <label class="form-label">Date Purchased</label>
+                                <input type="date" id="DateField" name="purchase_date" class="form-control" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Purchase Cost</label>
+                                <input type="number" name="purchase_cost" class="form-control" step="0.01">
                             </div>
                         </div>
 
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">Date Purchased</label>
-                                <input type="date" id="DateField" name="purchase_date" class="form-control" required>
+                                <label class="form-label">Supplier <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <select name="supplier" id="createSupplierSelect" class="form-select" required onchange="updateCreateSupplierDetails()">
+                                        <option value="">Select a Supplier</option>
+                                        {% for supplier in suppliers %}
+                                        <option value="{{ supplier.id }}"
+                                            {% if tire.supplier.id == supplier.id %}selected{% endif %}>
+                                            {{ supplier.supplier_name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="button" class="btn btn-outline-info" onclick="showCreateSupplierDetails()" id="createSupplierDetailsBtn" disabled>
+                                        <i class="bi bi-info-circle"></i>
+                                    </button>
+                                </div>
                             </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Initial Tread Depth</label>
+                                <input type="number" name="initial_tread_depth" class="form-control" step="0.01">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Maximum Retreads</label>
+                                <input type="number" name="maximum_retreads" class="form-control">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Retread Count</label>
+                                <input type="number" name="retread_count" class="form-control" value="0" readonly>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Current Position<span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <select name="current_position" id="createPositionSelect" class="form-select" required onchange="updateCreatePositionDetails()">
+                                        <option value="">Select a position</option>
+                                        {% for position in tire_positions %}
+                                        <option value="{{ position.id }}"
+                                            {% if tire.current_position.id == position.id %}selected{% endif %}>
+                                            {{ position.vehicle.license_plate }} - {{ position.position_name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="button" class="btn btn-outline-info" onclick="showCreatePositionDetails()" id="createPositionDetailsBtn" disabled>
+                                        <i class="bi bi-info-circle"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Tire Mileage</label>
+                                <input type="number" name="tire_mileage" class="form-control">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Notes</label>
+                                <textarea name="notes" class="form-control"></textarea>
                         </div>
                     </div>
                 </div>
@@ -296,6 +370,25 @@
     </div>
 </div>
 
+<!-- Position Details Modal -->
+<div class="modal fade" id="positionDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title"><i class="bi bi-truck"></i> Position Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="positionDetailsContent">
+                <!-- Populated by JavaScript -->
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 
 <!-- Edit and Details Modals for each tire -->
 {% for tire in tires %}
@@ -316,19 +409,45 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">Serial Number</label>
-                                <input type="text" name="serial_number" class="form-control" required>
+                                <input type="text" name="serial_number" class="form-control" value="{{ tire.serial_number }}" required>
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label">Pattern <span class="text-danger">*</span></label>
                                 <div class="input-group">
-                                    <select name="pattern" id="patternSelect" class="form-select" required onchange="updatePatternDetails()">
+                                    <select name="pattern" id="editPatternSelect-{{ tire.id }}" class="form-select" required onchange="updateEditPatternDetails('{{ tire.id }}')">
                                         <option value="">Select a Pattern</option>
                                         {% for pattern in tire_patterns %}
-                                        <option value="{{ pattern.id }}">{{ pattern.pattern_name }}</option>
+                                        <option value="{{ pattern.id }}"
+                                            {% if tire.pattern.id == pattern.id %}selected{% endif %}>
+                                            {{ pattern.pattern_code }}
+                                        </option>
                                         {% endfor %}
                                     </select>
-                                    <button type="button" class="btn btn-outline-info" onclick="showPatternDetails()" id="patternDetailsBtn" disabled>
+                                    <button type="button" class="btn btn-outline-info" onclick="showEditPatternDetails('{{ tire.id }}')" id="editPatternDetailsBtn-{{ tire.id }}" disabled>
+                                        <i class="bi bi-info-circle"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Size</label>
+                                <input type="text" name="size" class="form-control" value="{{ tire.size }}" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Status <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <select name="status" id="editStatusSelect-{{ tire.id }}" class="form-select" required onchange="updateEditStatusDetails('{{ tire.id }}')">
+                                        <option value="">Select a status</option>
+                                        {% for status in tire_statuses %}
+                                        <option value="{{ status.id }}"
+                                            {% if tire.status.id == status.id %}selected{% endif %}>
+                                            {{ status.status_name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="button" class="btn btn-outline-info" onclick="showEditStatusDetails('{{ tire.id }}')" id="editStatusDetailsBtn-{{ tire.id }}" disabled>
                                         <i class="bi bi-info-circle"></i>
                                     </button>
                                 </div>
@@ -336,22 +455,12 @@
 
                             <div class="mb-3">
                                 <label class="form-label">Purchase Date</label>
-                                <input type="date" id="DateField" name="purchase_date" class="form-control" required>
+                                <input type="date" id="DateField-{{ tire.id }}" name="purchase_date" class="form-control" required>
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label">Status <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <select name="status" id="statusSelect" class="form-select" required onchange="updateStatusDetails()">
-                                        <option value="">Select a status</option>
-                                        {% for status in statuses %}
-                                        <option value="{{ status.id }}">{{ status.status_name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                    <button type="button" class="btn btn-outline-info" onclick="showStatusDetails()" id="statusDetailsBtn" disabled>
-                                        <i class="bi bi-info-circle"></i>
-                                    </button>
-                                </div>
+                                <label class="form-label">Cost</label>
+                                <input type="number" step="0.01" name="purchase_cost" class="form-control" value="{{ tire.purchase_cost }}" required>
                             </div>
                         </div>
 
@@ -359,26 +468,65 @@
                             <div class="mb-3">
                                 <label class="form-label">Supplier <span class="text-danger">*</span></label>
                                 <div class="input-group">
-                                    <select name="supplier" id="supplierSelect" class="form-select" required onchange="updateSupplierDetails()">
+                                    <select name="supplier" id="editSupplierSelect-{{ tire.id }}" class="form-select" required onchange="updateEditSupplierDetails('{{ tire.id }}')">
                                         <option value="">Select a Supplier</option>
                                         {% for supplier in suppliers %}
-                                        <option value="{{ supplier.id }}">{{ supplier.supplier_name }}</option>
+                                        <option value="{{ supplier.id }}"
+                                            {% if tire.supplier.id == supplier.id %}selected{% endif %}>
+                                            {{ supplier.supplier_name }}
+                                        </option>
                                         {% endfor %}
                                     </select>
-                                    <button type="button" class="btn btn-outline-info" onclick="showSupplierDetails()" id="supplierDetailsBtn" disabled>
+                                    <button type="button" class="btn btn-outline-info" onclick="showEditSupplierDetails('{{ tire.id }}')" id="editSupplierDetailsBtn-{{ tire.id }}" disabled>
                                         <i class="bi bi-info-circle"></i>
                                     </button>
                                 </div>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label">Initial Tread Depth</label>
-                                <input type="number" name="initial_tread_depth" class="form-control" required>
-                        </div>
 
                             <div class="mb-3">
-                                <label class="form-label">Cost</label>
-                                <input type="number" step="0.01" name="cost" class="form-control" value="{{ tire.purchase_cost }}" required>
+                                <label class="form-label">Last Tread Depth</label>
+                                <input type="number" name="last_tread_depth" class="form-control" value="{{ tire.last_tread_depth }}" required>
                             </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Retread Count</label>
+                                <input type="number" name="retread_count" class="form-control" value="{{ tire.retread_count }}" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Maximum Retreads</label>
+                                <input type="number" name="maximum_retreads" class="form-control" value="{{ tire.maximum_retreads }}" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Current Position <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <select name="current_position" id="editPositionSelect-{{ tire.id }}" class="form-select" required onchange="updateEditPositionDetails('{{ tire.id }}')">
+                                        <option value="">Select a Position</option>
+                                        {% for position in tire_positions %}
+                                        <option value="{{ position.id }}"
+                                            {% if tire.current_position.id == position.id %}selected{% endif %}>
+                                            {{ position.position_name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="button" class="btn btn-outline-info" onclick="showEditPositionDetails('{{ tire.id }}')" id="editPositionDetailsBtn-{{ tire.id }}" disabled>
+                                        <i class="bi bi-info-circle"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Tire Mileage</label>
+                                <input type="number" name="tire_mileage" class="form-control" value="{{ tire.tire_mileage }}" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Notes</label>
+                                <input type="text" name="notes" class="form-control" value="{{ tire.notes }}" required>
+                            </div>
+
+                            
                         </div>
                     </div>
                 </div>
@@ -420,7 +568,7 @@
                         </div>
                         <div class="mb-3">
                             <small class="text-muted">Status</small>
-                            <p class="mb-0"><strong>{{ tire.tire_status.status_name }}</strong></p>
+                            <p class="mb-0"><strong>{{ tire.status.status_name }}</strong></p>
                         </div>
                     </div>
 
@@ -486,7 +634,7 @@
         transform: translateY(-2px);
     }
 
-    .work-order-card {
+    .tire-card {
         transition: all 0.3s ease;
     }
 
@@ -503,7 +651,7 @@
         font-size: 0.85rem;
     }
 
-    #workOrdersContainer {
+    #TiresContainer {
         min-height: 400px;
     }
 </style>
@@ -511,7 +659,7 @@
 
 {% block extra_js %}
 <script>
-// Store supplier, status and pattern data
+// Store supplier, status, pattern and position data
 const supplierData = {
     {% for supplier in suppliers %}
     "{{ supplier.id }}": {
@@ -548,33 +696,76 @@ const tire_statusData = {
     {% endfor %}
 };
 
+const tire_positionData = {
+    {% for tire_position in tire_positions %}
+    "{{ tire_position.id }}": {
+        vehicle: "{{ tire_position.vehicle }}",
+        position_name: "{{ tire_position.position_name }}",
+        axle_number: "{{ tire_position.axle_number }}",
+        wheel_number: "{{ tire_position.wheel_number }}",
+        axle_type: "{{ tire_position.axle_type }}",
+        tire_order: "{{ tire_position.tire_order }}",
+        is_spare: "{{ tire_position.is_spare }}",
+        mounted_tires: "{{ tire_position.mounted_tires }}"
+    },
+    {% endfor %}
+};
+
 // Update pattern details button state
-function updatePatternDetails() {
-    const select = document.getElementById('patternSelect');
-    const button = document.getElementById('patternDetailsBtn');
+function updateCreatePatternDetails() {
+    const select = document.getElementById('createPatternSelect');
+    const button = document.getElementById('createPatternDetailsBtn');
     button.disabled = !select.value;
 }
+function updateEditPatternDetails(tireId) {
+    const select = document.getElementById(`editPatternSelect-${tireId}`);
+    const button = document.getElementById(`editPatternDetailsBtn-${tireId}`);
+    button.disabled = !select.value;
+}
+
 // Update Supplier details button state
-function updateSupplierDetails() {
-    const select = document.getElementById('supplierSelect');
-    const button = document.getElementById('supplierDetailsBtn');
+function updateCreateSupplierDetails() {
+    const select = document.getElementById('createSupplierSelect');
+    const button = document.getElementById('createSupplierDetailsBtn');
+    button.disabled = !select.value;
+}
+function updateEditSupplierDetails(tireId) {
+    const select = document.getElementById(`editSupplierSelect-${tireId}`);
+    const button = document.getElementById(`editSupplierDetailsBtn-${tireId}`);
     button.disabled = !select.value;
 }
 
 // Update Status details button state
-function updateStatusDetails() {
-    const select = document.getElementById('statusSelect');
-    const button = document.getElementById('statusDetailsBtn');
+function updateCreateStatusDetails() {
+    const select = document.getElementById('createStatusSelect');
+    const button = document.getElementById('createStatusDetailsBtn');
+    button.disabled = !select.value;
+}
+function updateEditStatusDetails(tireId) {
+    const select = document.getElementById(`editStatusSelect-${tireId}`);
+    const button = document.getElementById(`editStatusDetailsBtn-${tireId}`);
+    button.disabled = !select.value;
+}
+
+// Update Position details button state
+function updateCreatePositionDetails() {
+    const select = document.getElementById('createPositionSelect');
+    const button = document.getElementById('createPositionDetailsBtn');
+    button.disabled = !select.value;
+}
+function updateEditPositionDetails(tireId) {
+    const select = document.getElementById(`editPositionSelect-${tireId}`);
+    const button = document.getElementById(`editPositionDetailsBtn-${tireId}`);
     button.disabled = !select.value;
 }
 
 // Show pattern details modal
-function showPatternDetails() {
-    const select = document.getElementById('patternSelect');
+function showCreatePatternDetails() {
+    const select = document.getElementById('createPatternSelect');
     const patternId = select.value;
 
-    if (patternId && patternData[patternId]) {
-        const pattern = patternData[patternId];
+    if (patternId && tire_patternData[patternId]) {
+        const pattern = tire_patternData[patternId];
         const content = document.getElementById('patternDetailsContent');
 
         content.innerHTML = `
@@ -592,9 +783,57 @@ function showPatternDetails() {
         modal.show();
     }
 }
+function showEditPatternDetails(tireId) {
+    const select = document.getElementById(`editPatternSelect-${tireId}`);
+    const patternId = select.value;
+
+    if (patternId && tire_patternData[patternId]) {
+        const pattern = tire_patternData[patternId];
+        const content = document.getElementById('patternDetailsContent');
+
+        content.innerHTML = `
+            <p><strong>Pattern Code:</strong> ${pattern.pattern_code}</p>
+            <p><strong>Brand:</strong> ${pattern.brand_name}</p>
+            <p><strong>Country of Origin:</strong> ${pattern.country_of_origin}</p>
+            <p><strong>Load Index:</strong> ${pattern.load_index}</p>
+            <p><strong>Speed Symbol:</strong> ${pattern.speed_symbol}</p>
+            <p><strong>Road Type:</strong> ${pattern.road_type}</p>
+        `;
+
+        const modal = new bootstrap.Modal(
+            document.getElementById('patternDetailsModal')
+        );
+        modal.show();
+    }
+}
+
 // Show Supplier details modal
-function showSupplierDetails() {
-    const select = document.getElementById('supplierSelect');
+function showCreateSupplierDetails() {
+    const select = document.getElementById('createSupplierSelect');
+    const supplierId = select.value;
+
+    if (supplierId && supplierData[supplierId]) {
+        const supplier = supplierData[supplierId];
+        const content = document.getElementById('supplierDetailsContent');
+
+        content.innerHTML = `
+            <p><strong>Supplier Name:</strong> ${supplier.supplier_name}</p>
+            <p><strong>Contact Person:</strong> ${supplier.contact_person || '-'}</p>
+            <p><strong>Position:</strong> ${supplier.position || '-'}</p>
+            <p><strong>Phone:</strong> ${supplier.phone || '-'}</p>
+            <p><strong>Email:</strong> ${supplier.email || '-'}</p>
+            <p><strong>Address:</strong> ${supplier.address || '-'}</p>
+            <p><strong>Evaluation:</strong> ${supplier.evaluation || '-'}</p>
+        `;
+
+        const modal = new bootstrap.Modal(
+            document.getElementById('supplierDetailsModal')
+        );
+        modal.show();
+    }
+}
+function showEditSupplierDetails(tireId) {
+    const select = document.getElementById(`editSupplierSelect-${tireId}`);
     const supplierId = select.value;
 
     if (supplierId && supplierData[supplierId]) {
@@ -618,13 +857,85 @@ function showSupplierDetails() {
     }
 }
 
+// Show Position details modal
+function showCreatePositionDetails() {
+    const select = document.getElementById('createPositionSelect');
+    const positionId = select.value;
+
+    if (positionId && tire_positionData[positionId]) {
+        const position = tire_positionData[positionId];
+        const content = document.getElementById('positionDetailsContent');
+
+        content.innerHTML = `
+            <p><strong>Vehicle:</strong> ${position.vehicle}</p>
+            <p><strong>Position Name:</strong> ${position.position_name || '-'}</p>
+            <p><strong>Axle Number:</strong> ${position.axle_number || '-'}</p>
+            <p><strong>Wheel Number:</strong> ${position.wheel_number || '-'}</p>
+            <p><strong>Axle Type:</strong> ${position.axle_type || '-'}</p>
+            <p><strong>Tire Order:</strong> ${position.tire_order || '-'}</p>
+            <p><strong>Is Spare:</strong> ${position.is_spare || '-'}</p>
+            <p><strong>Mounted Tires:</strong> ${position.mounted_tires || '-'}</p>
+        `;
+
+        const modal = new bootstrap.Modal(
+            document.getElementById('positionDetailsModal')
+        );
+        modal.show();
+    }
+}
+function showEditPositionDetails(tireId) {
+    const select = document.getElementById(`editPositionSelect-${tireId}`);
+    const positionId = select.value;
+
+    if (positionId && tire_positionData[positionId]) {
+        const position = tire_positionData[positionId];
+        const content = document.getElementById('positionDetailsContent');
+
+        content.innerHTML = `
+            <p><strong>Vehicle:</strong> ${position.vehicle}</p>
+            <p><strong>Position Name:</strong> ${position.position_name || '-'}</p>
+            <p><strong>Axle Number:</strong> ${position.axle_number || '-'}</p>
+            <p><strong>Wheel Number:</strong> ${position.wheel_number || '-'}</p>
+            <p><strong>Axle Type:</strong> ${position.axle_type || '-'}</p>
+            <p><strong>Tire Order:</strong> ${position.tire_order || '-'}</p>
+            <p><strong>Is Spare:</strong> ${position.is_spare || '-'}</p>
+            <p><strong>Mounted Tires:</strong> ${position.mounted_tires || '-'}</p>
+        `;
+
+        const modal = new bootstrap.Modal(
+            document.getElementById('positionDetailsModal')
+        );
+        modal.show();
+    }
+}
+
+
 // Show status details modal
-function showStatusDetails() {
-    const select = document.getElementById('statusSelect');
+function showCreateStatusDetails() {
+    const select = document.getElementById('createStatusSelect');
     const statusId = select.value;
 
-    if (statusId && statusData[statusId]) {
-        const status = statusData[statusId];
+    if (statusId && tire_statusData[statusId]) {
+        const status = tire_statusData[statusId];
+        const content = document.getElementById('statusDetailsContent');
+
+        content.innerHTML = `
+            <p><strong>Status Name:</strong> ${status.status_name}</p>
+            <p><strong>Description:</strong> ${status.description || 'No description provided'}</p>
+        `;
+
+        const modal = new bootstrap.Modal(
+            document.getElementById('statusDetailsModal')
+        );
+        modal.show();
+    }
+}
+function showEditStatusDetails(tireId) {
+    const select = document.getElementById(`editStatusSelect-${tireId}`);
+    const statusId = select.value;
+
+    if (statusId && tire_statusData[statusId]) {
+        const status = tire_statusData[statusId];
         const content = document.getElementById('statusDetailsContent');
 
         content.innerHTML = `
@@ -639,10 +950,10 @@ function showStatusDetails() {
     }
 }
 
-// Filter work orders based on search input
+// Filter Tires based on search input
 function filterTable() {
     const searchInput = document.getElementById('searchInput').value.toUpperCase();
-    const cards = document.querySelectorAll('.work-order-card');
+    const cards = document.querySelectorAll('.tire-card');
 
     cards.forEach(card => {
         const text = card.textContent.toUpperCase();
@@ -656,12 +967,12 @@ function resetFilters() {
     filterTable();
 }
 
-// Delete work order with confirmation
-function deleteWorkOrder(workOrderId, workOrderNumber) {
-    if (confirm(`Are you sure you want to delete work order ${workOrderNumber}?`)) {
+// Delete tire with confirmation
+function deleteTire(tireId, tireNumber) {
+    if (confirm(`Are you sure you want to delete tire ${tireNumber}?`)) {
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = `/work-orders/${workOrderId}/delete/`;
+        form.action = `/tires/delete/${tireId}/`;
         
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
         if (csrfToken) {
@@ -676,19 +987,27 @@ function deleteWorkOrder(workOrderId, workOrderNumber) {
 
 // Edit tire - open edit modal
 function editTire(tireId) {
-    const editModal = new bootstrap.Modal(document.getElementById(`editModal-${tireId}`));
-    editModal.show();
+    const modalEl = document.getElementById(`editModal-${tireId}`);
+    if (!modalEl) {
+        console.error('Edit modal not found:', tireId);
+        return;
+    }
+    new bootstrap.Modal(modalEl).show();
 }
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Set date field to today
-    document.getElementById('DateField').valueAsDate = new Date();
-    
-    // Initialize button states
-    updateSupplierDetails();
-    updatePatternDetails();
-    updateStatusDetails();
+    // Set data field to current date
+    const dateField = document.getElementById('DateField');
+    if (dateField) {
+        dateField.valueAsDate = new Date();
+    }
+
+    updateCreateSupplierDetails();
+    updateCreatePatternDetails();
+    updateCreateStatusDetails();
+    updateCreatePositionDetails();
+
 });
 </script>
 {% endblock %}
