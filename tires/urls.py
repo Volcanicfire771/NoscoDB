@@ -13,6 +13,15 @@ from .views.tires import *
 from .views.vehicles import *
 from .views.work_order import *
 from .views.tire_wear import *
+from . import views
+from .views.excel_import import (
+    import_excel_upload,
+    import_excel_mapping,
+    import_excel_preview,
+    import_excel_confirm,
+    import_excel_success
+)
+
 
 
 
@@ -70,6 +79,7 @@ urlpatterns = [
 
     # Tire Inspections URLs
     path('tire-inspections/', tire_inspections_list, name='tire_inspections_list'),
+    path('tire-inspections/bulk-inspect/', tire_inspections_list, name='tire_inspections_bulk'),
     path('tire-inspections/create/', tire_inspections_create, name='tire_inspections_create'),
     path('tire-inspections/update/<int:id>/', tire_inspections_update, name='tire_inspections_update'),
     path('tire-inspections/delete/<int:id>/', tire_inspections_delete, name='tire_inspections_delete'),
@@ -88,14 +98,21 @@ urlpatterns = [
     path('tire-patterns/delete/<int:id>/', tire_patterns_delete, name='tire_patterns_delete'),
 
     # Tire Assignment URLS
-     path('tire-assignments/', tire_assignment_list, name='tire_assignment_list'),
-    path('tire-assignments/create/', tire_assignment_create, name='tire_assignment_create'),
-    path('tire-assignments/<int:id>/update/', tire_assignment_update, name='tire_assignment_update'),
-    path('tire-assignments/<int:id>/delete/', tire_assignment_delete, name='tire_assignment_delete'),
+    path('tire-assignment/', tire_assignment_list, name='tire_assignment_list'),
+    path('tire-assignment/create/', tire_assignment_create, name='tire_assignment_create'),
+    path('tire-assignment/update/<int:id>/', tire_assignment_update, name='tire_assignment_update'),
+    path('tire-assignment/delete/<int:id>/', tire_assignment_delete, name='tire_assignment_delete'),
+
     # Tire Wear URLS
     path('tire-wear-type/', tire_wear_type_list, name='tire_wear_type_list'),
     path('tire-wear-type/create/', tire_wear_type_create, name='tire_wear_type_create'),
     path('tire-wear-type/update/<int:id>/', tire_wear_type_update, name='tire_wear_type_update'),
     path('tire-wear-type/delete/<int:id>/', tire_wear_type_delete, name='tire_wear_type_delete'),
+    # Excel Import URLs
+    path('import/', import_excel_upload, name='import_excel_upload'),
+    path('import/mapping/', import_excel_mapping, name='import_excel_mapping'),
+    path('import/preview/', import_excel_preview, name='import_excel_preview'),
+    path('import/confirm/', import_excel_confirm, name='import_excel_confirm'),
+    path('import/success/', import_excel_success, name='import_excel_success'),
 
 ]

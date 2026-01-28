@@ -1,0 +1,424 @@
+{% extends 'base/base.html' %}
+
+{% load custom_filters %}
+
+{% block content %}
+<div class="import-container">
+  <!-- Header Section -->
+  <div class="import-header">
+    <div class="header-content">
+      <h1 class="page-title">Map Your Data</h1>
+      <p class="page-subtitle">Step 2 of 5 - Select which columns contain which data</p>
+    </div>
+  </div>
+
+  <!-- Progress Bar -->
+  <div class="progress-section">
+    <div class="progress-bar-container">
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: 40%;"></div>
+      </div>
+      <div class="progress-labels">
+        <div class="progress-step completed">
+          <span class="step-number">1</span>
+          <span class="step-label">Upload</span>
+        </div>
+        <div class="progress-step active">
+          <span class="step-number">2</span>
+          <span class="step-label">Mapping</span>
+        </div>
+        <div class="progress-step">
+          <span class="step-number">3</span>
+          <span class="step-label">Preview</span>
+        </div>
+        <div class="progress-step">
+          <span class="step-number">4</span>
+          <span class="step-label">Confirm</span>
+        </div>
+        <div class="progress-step">
+          <span class="step-number">5</span>
+          <span class="step-label">Success</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Card -->
+  <div class="summary-card">
+    <div class="summary-header">
+      <h2>Column Mapping</h2>
+      <span class="import-type-badge">{{ import_type|upper }}</span>
+    </div>
+    
+    <div class="summary-grid">
+      <div class="summary-item">
+        <span class="summary-label">File Name</span>
+        <span class="summary-value" style="word-break: break-word;">{{ file_name }}</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Total Columns</span>
+        <span class="summary-value">{{ headers|length }}</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Import Type</span>
+        <span class="summary-value">{{ import_type|upper }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mapping Section -->
+  <div class="mapping-section">
+    <div class="selection-header">
+      <h3>Map Columns</h3>
+      <p class="section-subtitle">Select which file column corresponds to each data field</p>
+    </div>
+
+    <form method="POST" id="mappingForm">
+      {% csrf_token %}
+      
+      <div class="mapping-grid">
+        {% for field, options in field_options.items %}
+          <div class="mapping-item">
+            <label class="mapping-label">{{ field|upper }}</label>
+            <select name="mappings[{{ field }}]" class="mapping-select" required>
+              <option value="">-- Select Column --</option>
+              {% for header in headers %}
+                <option value="{{ header }}" {% if options.suggested == header %}selected{% endif %}>
+                  {{ header }}
+                </option>
+              {% endfor %}
+            </select>
+            {% if options.suggested %}
+              <small class="text-success">✓ Auto-suggested: {{ options.suggested }}</small>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <a href="{% url 'import_excel_upload' %}" class="btn btn-secondary">
+          <span class="btn-icon">←</span> Back to Upload
+        </a>
+        <button type="submit" class="btn btn-primary" id="proceedBtn">
+          <span class="btn-icon">→</span> Proceed to Preview
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+  :root {
+    --color-primary: #2180a0;
+    --color-primary-dark: #1a6680;
+    --color-secondary: #f5f5f5;
+    --color-text: #333;
+    --color-text-light: #666;
+    --color-border: #e0e0e0;
+    --color-success: #27ae60;
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --radius-sm: 4px;
+    --radius-md: 8px;
+  }
+
+  .import-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+  }
+
+  /* Header */
+  .import-header {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .page-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0 0 var(--spacing-sm) 0;
+  }
+
+  .page-subtitle {
+    font-size: 14px;
+    color: var(--color-text-light);
+    margin: 0;
+  }
+
+  /* Progress Bar */
+  .progress-section {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .progress-bar-container {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .progress-bar {
+    height: 6px;
+    background: var(--color-border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary), #32a9bf);
+    border-radius: var(--radius-sm);
+    transition: width 0.3s ease;
+  }
+
+  .progress-labels {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+  }
+
+  .progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+  }
+
+  .progress-step.completed,
+  .progress-step.active {
+    opacity: 1;
+  }
+
+  .step-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: var(--color-secondary);
+    border: 2px solid var(--color-border);
+    border-radius: 50%;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--color-text-light);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .progress-step.completed .step-number {
+    background: var(--color-success);
+    color: white;
+    border-color: var(--color-success);
+  }
+
+  .progress-step.active .step-number {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+  }
+
+  .step-label {
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+  }
+
+  /* Summary Card */
+  .summary-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+
+  .summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-lg);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .summary-header h2 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--color-text);
+  }
+
+  .import-type-badge {
+    display: inline-block;
+    background: var(--color-primary);
+    color: white;
+    padding: 4px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--spacing-md);
+  }
+
+  .summary-item {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .summary-label {
+    font-size: 12px;
+    color: var(--color-text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .summary-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+
+  /* Mapping Section */
+  .mapping-section {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+  }
+
+  .selection-header {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .selection-header h3 {
+    margin: 0 0 var(--spacing-sm) 0;
+    font-size: 18px;
+    color: var(--color-text);
+  }
+
+  .section-subtitle {
+    margin: 0;
+    font-size: 14px;
+    color: var(--color-text-light);
+  }
+
+  /* Mapping Grid */
+  .mapping-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-lg);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .mapping-item {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mapping-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: var(--spacing-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .mapping-select {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .mapping-select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(33, 128, 160, 0.1);
+  }
+
+  .mapping-item small {
+    font-size: 12px;
+    display: block;
+  }
+
+  /* Action Buttons */
+  .action-buttons {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: space-between;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    flex: 1;
+  }
+
+  .btn-primary {
+    background: var(--color-primary);
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: var(--color-primary-dark);
+  }
+
+  .btn-secondary {
+    background: var(--color-secondary);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+  }
+
+  .btn-secondary:hover {
+    background: #f9f9f9;
+  }
+
+  .btn-icon {
+    font-size: 16px;
+  }
+
+  @media (max-width: 768px) {
+    .import-container {
+      padding: var(--spacing-md);
+    }
+
+    .progress-labels {
+      gap: var(--spacing-sm);
+    }
+
+    .mapping-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .action-buttons {
+      flex-direction: column;
+    }
+  }
+</style>
+{% endblock %}

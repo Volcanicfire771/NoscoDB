@@ -1,0 +1,695 @@
+{% extends 'base/base.html' %}
+
+{% load custom_filters %}
+
+{% block content %}
+<div class="import-container">
+  <!-- Header Section -->
+  <div class="import-header">
+    <div class="header-content">
+      <h1 class="page-title">Review Your Data</h1>
+      <p class="page-subtitle">Step 3 of 5 - Select rows to import</p>
+    </div>
+  </div>
+
+  <!-- Progress Bar -->
+  <div class="progress-section">
+    <div class="progress-bar-container">
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: 60%;"></div>
+      </div>
+      <div class="progress-labels">
+        <div class="progress-step completed">
+          <span class="step-number">1</span>
+          <span class="step-label">Upload</span>
+        </div>
+        <div class="progress-step completed">
+          <span class="step-number">2</span>
+          <span class="step-label">Mapping</span>
+        </div>
+        <div class="progress-step active">
+          <span class="step-number">3</span>
+          <span class="step-label">Preview</span>
+        </div>
+        <div class="progress-step">
+          <span class="step-number">4</span>
+          <span class="step-label">Confirm</span>
+        </div>
+        <div class="progress-step">
+          <span class="step-number">5</span>
+          <span class="step-label">Success</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Card -->
+  <div class="summary-card">
+    <div class="summary-header">
+      <h2>Data Preview</h2>
+      <span class="import-type-badge">{{ import_type|upper }}</span>
+    </div>
+    
+    <div class="summary-grid">
+      <div class="summary-item">
+        <span class="summary-label">File Name</span>
+        <span class="summary-value" style="word-break: break-word;">{{ file_name }}</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Total Rows</span>
+        <span class="summary-value">{{ total_rows }}</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Data Columns</span>
+        <span class="summary-value">{{ headers|length }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row Selection Section -->
+  <div class="row-selection-section">
+    <div class="selection-header">
+      <h3>Select Rows to Import</h3>
+      <p class="section-subtitle">Choose which rows you want to import (showing page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }})</p>
+    </div>
+
+    <form method="POST" id="previewForm">
+      {% csrf_token %}
+      <input type="hidden" name="current_page" value="{{ page_obj.number }}">
+      
+      <div class="selection-toolbar">
+        <label class="select-all-wrapper">
+          <input type="checkbox" id="selectAllCheckbox" class="select-all-checkbox">
+          <span class="checkbox-custom"></span>
+          <span class="select-all-label">Select All On This Page</span>
+        </label>
+        <div class="toolbar-actions">
+          <span class="selection-count">
+            <strong id="countDisplay">{{ data|length }}</strong> rows on page selected
+          </span>
+        </div>
+      </div>
+
+      <!-- Data Table Preview -->
+      <div class="data-table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 40px; text-align: center;">Select</th>
+              {% for header in headers %}
+                <th>{{ header }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in data %}
+              <tr class="data-row">
+                <td style="text-align: center;">
+                  <label class="row-checkbox-wrapper">
+                    <input 
+                      type="checkbox" 
+                      name="selected_rows" 
+                      value="{{ forloop.counter0 }}" 
+                      class="row-checkbox"
+                      {% if forloop.counter0 in page_selected %}checked="checked"{% endif %}
+                      data-row-number="{{ forloop.counter }}"
+                    >
+                    <span class="row-checkbox-custom"></span>
+                  </label>
+                </td>
+                {% for header in headers %}
+                  <td>{{ row|get_item:header }}</td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Controls -->
+      {% if page_obj.has_other_pages %}
+      <div class="pagination-controls">
+        <div class="pagination-info">
+          Page <strong>{{ page_obj.number }}</strong> of <strong>{{ page_obj.paginator.num_pages }}</strong>
+          (Showing rows {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ total_rows }})
+        </div>
+        <div class="pagination-buttons">
+          {% if page_obj.has_previous %}
+            <a href="?page=1" class="btn btn-outline btn-sm">First</a>
+            <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-outline btn-sm">← Previous</a>
+          {% endif %}
+          
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+              <button type="button" class="btn btn-outline btn-sm active" disabled>{{ num }}</button>
+            {% else %}
+              <a href="?page={{ num }}" class="btn btn-outline btn-sm">{{ num }}</a>
+            {% endif %}
+          {% endfor %}
+          
+          {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}" class="btn btn-outline btn-sm">Next →</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}" class="btn btn-outline btn-sm">Last</a>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <a href="{% url 'import_excel_mapping' %}" class="btn btn-secondary">
+          <span class="btn-icon">←</span> Back to Mapping
+        </a>
+        <button type="submit" class="btn btn-primary" id="confirmBtn">
+          <span class="btn-icon">→</span> Continue to Confirm
+        </button>
+        <button type="submit" class="btn btn-primary" name="action" value="quick_import">
+        Import Now
+      </button>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+  :root {
+    --color-primary: #2180a0;
+    --color-primary-dark: #1a6680;
+    --color-secondary: #f5f5f5;
+    --color-text: #333;
+    --color-text-light: #666;
+    --color-border: #e0e0e0;
+    --color-success: #27ae60;
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --radius-sm: 4px;
+    --radius-md: 8px;
+  }
+
+  .import-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+  }
+
+  /* Header */
+  .import-header {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .page-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0 0 var(--spacing-sm) 0;
+  }
+
+  .page-subtitle {
+    font-size: 14px;
+    color: var(--color-text-light);
+    margin: 0;
+  }
+
+  /* Progress Bar */
+  .progress-section {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .progress-bar-container {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .progress-bar {
+    height: 6px;
+    background: var(--color-border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary), #32a9bf);
+    border-radius: var(--radius-sm);
+    transition: width 0.3s ease;
+  }
+
+  .progress-labels {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+  }
+
+  .progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+  }
+
+  .progress-step.completed,
+  .progress-step.active {
+    opacity: 1;
+  }
+
+  .step-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: var(--color-secondary);
+    border: 2px solid var(--color-border);
+    border-radius: 50%;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--color-text-light);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .progress-step.completed .step-number {
+    background: var(--color-success);
+    color: white;
+    border-color: var(--color-success);
+  }
+
+  .progress-step.active .step-number {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+  }
+
+  .step-label {
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+  }
+
+  /* Summary Card */
+  .summary-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+
+  .summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-lg);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .summary-header h2 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--color-text);
+  }
+
+  .import-type-badge {
+    display: inline-block;
+    background: var(--color-primary);
+    color: white;
+    padding: 4px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--spacing-md);
+  }
+
+  .summary-item {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .summary-label {
+    font-size: 12px;
+    color: var(--color-text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .summary-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+
+  /* Row Selection Section */
+  .row-selection-section {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+  }
+
+  .selection-header {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .selection-header h3 {
+    margin: 0 0 var(--spacing-sm) 0;
+    font-size: 18px;
+    color: var(--color-text);
+  }
+
+  .section-subtitle {
+    margin: 0;
+    font-size: 14px;
+    color: var(--color-text-light);
+  }
+
+  /* Selection Toolbar */
+  .selection-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    background: var(--color-secondary);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--color-border);
+  }
+
+  .select-all-wrapper {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .select-all-checkbox {
+    display: none;
+  }
+
+  .checkbox-custom {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: white;
+    transition: all 0.2s;
+  }
+
+  .select-all-checkbox:checked + .checkbox-custom {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+
+  .select-all-checkbox:checked + .checkbox-custom::after {
+    content: '✓';
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  .select-all-label {
+    font-weight: 600;
+    color: var(--color-text);
+    font-size: 14px;
+  }
+
+  .toolbar-actions {
+    display: flex;
+    gap: var(--spacing-md);
+  }
+
+  .selection-count {
+    font-size: 14px;
+    color: var(--color-text-light);
+  }
+
+  /* Data Table */
+  .data-table-wrapper {
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .data-table thead {
+    background: var(--color-secondary);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .data-table th {
+    padding: var(--spacing-md);
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-text);
+    border-right: 1px solid var(--color-border);
+  }
+
+  .data-table th:last-child {
+    border-right: none;
+  }
+
+  .data-table tbody tr {
+    border-bottom: 1px solid var(--color-border);
+    transition: background 0.2s;
+  }
+
+  .data-table tbody tr:hover {
+    background: var(--color-secondary);
+  }
+
+  .data-table td {
+    padding: var(--spacing-md);
+    color: var(--color-text);
+    border-right: 1px solid var(--color-border);
+  }
+
+  .data-table td:last-child {
+    border-right: none;
+  }
+
+  .row-checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+  }
+
+  .row-checkbox {
+    display: none;
+  }
+
+  .row-checkbox-custom {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: white;
+    transition: all 0.2s;
+  }
+
+  .row-checkbox:checked + .row-checkbox-custom {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+
+  .row-checkbox:checked + .row-checkbox-custom::after {
+    content: '✓';
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+  }
+
+  /* Pagination Controls */
+  .pagination-controls {
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background: var(--color-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+  }
+
+  .pagination-info {
+    font-size: 13px;
+    color: var(--color-text-light);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .pagination-buttons {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .btn-outline {
+    background: white;
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+  }
+
+  .btn-outline:hover {
+    background: #f9f9f9;
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .btn-outline.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+  }
+
+  .btn-sm {
+    padding: var(--spacing-xs) var(--spacing-md);
+    font-size: 12px;
+  }
+
+  /* Action Buttons */
+  .action-buttons {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: space-between;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    flex: 1;
+  }
+
+  .btn-primary {
+    background: var(--color-primary);
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: var(--color-primary-dark);
+  }
+
+  .btn-secondary {
+    background: var(--color-secondary);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+  }
+
+  .btn-secondary:hover {
+    background: #f9f9f9;
+  }
+
+  .btn-icon {
+    font-size: 16px;
+  }
+
+  @media (max-width: 768px) {
+    .import-container {
+      padding: var(--spacing-md);
+    }
+
+    .progress-labels {
+      gap: var(--spacing-sm);
+    }
+
+    .action-buttons {
+      flex-direction: column;
+    }
+
+    .data-table {
+      font-size: 12px;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: var(--spacing-sm);
+    }
+
+    .pagination-buttons {
+      justify-content: center;
+    }
+  }
+</style>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+    const countDisplay = document.getElementById('countDisplay');
+    const previewForm = document.getElementById('previewForm');
+
+    const totalRows = rowCheckboxes.length;
+
+    function updateCounts() {
+      const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
+      countDisplay.textContent = checkedCount;
+
+      // Update select all checkbox state
+      selectAllCheckbox.checked = checkedCount === rowCheckboxes.length;
+      selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < rowCheckboxes.length;
+    }
+
+    // Select All functionality
+    selectAllCheckbox.addEventListener('change', function() {
+      rowCheckboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+      });
+      updateCounts();
+    });
+
+    // Individual checkbox changes
+    rowCheckboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', updateCounts);
+    });
+
+    // Initial count
+    updateCounts();
+
+    // Prevent form submission if no rows selected ONLY for confirm button
+    previewForm.addEventListener('submit', function(e) {
+      const submitter = e.submitter || document.activeElement;
+
+      // If user clicked "Continue to Confirm", enforce selection.
+      if (submitter && submitter.id === 'confirmBtn') {
+        if (document.querySelectorAll('.row-checkbox:checked').length === 0) {
+          e.preventDefault();
+          alert('Please select at least one row to import.');
+        }
+      }
+      // If user clicked "Import Now" (name="action" value="quick_import"),
+      // do NOT block; quick_import uses all rows, not just selected ones.
+    });
+  });
+</script>
+
+{% endblock %}

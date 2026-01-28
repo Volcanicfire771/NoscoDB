@@ -12,31 +12,23 @@ def tires_list(request):
     tire_patterns = TirePattern.objects.all()
     tire_statuses = TireStatus.objects.all()
     suppliers = Supplier.objects.all()
-    
-    # Get filter parameters from request
-    pattern_filter = request.GET.get('pattern_filter', '')
-    status_filter = request.GET.get('status_filter', '')
-    supplier_filter = request.GET.get('supplier_filter', '')
-       
 
-    # Apply filters only if they exist
-    if pattern_filter:
-        tires = tires.filter(pattern_id=pattern_filter)  # Keep as pattern_id
-    
-    if status_filter:
-        tires = tires.filter(status_id=status_filter)  # Keep as status_id
-    
-    if supplier_filter:
-        tires = tires.filter(supplier_id=supplier_filter)  # Keep as supplier_id
-    
+    active_count = Tire.objects.filter(
+        Q(status=1) | Q(status=6) | Q(status=7)
+    ).count()
+    under_repair_count = Tire.objects.filter(status=3).count()
+    inactive_count = Tire.objects.filter(
+        Q(status=2) | Q(status=4)
+    ).count()
+
     context = {
         'tires': tires,
         'tire_patterns': tire_patterns,
         'tire_statuses': tire_statuses,
         'suppliers': suppliers,
-        'pattern_filter': pattern_filter,
-        'status_filter': status_filter,
-        'supplier_filter': supplier_filter,
+        'active_count': active_count,
+        'under_repair_count': under_repair_count,
+        'inactive_count': inactive_count,
     }
     return render(request, 'tires/tires_list.html', context)
 
