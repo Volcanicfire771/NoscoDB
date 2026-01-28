@@ -43,6 +43,7 @@ def tire_position_create(request):
         position_name = request.POST.get('position_name')
         axle_number = request.POST.get('axle_number')
         wheel_number = request.POST.get('wheel_number')
+        axle_type = request.POST.get('axle_type')
         is_spare = request.POST.get('is_spare') == 'on'
         mounted_tire_id = request.POST.get('mounted_tire')
         
@@ -61,6 +62,7 @@ def tire_position_create(request):
             position_name=position_name,
             axle_number=axle_number,
             wheel_number=wheel_number,
+            axle_type=axle_type,
             is_spare=is_spare,
             mounted_tire=tire  # This can be None
         )
@@ -97,6 +99,7 @@ def tire_position_update(request, id):
         tire_position.position_name = request.POST.get('position_name')
         tire_position.axle_number = request.POST.get('axle_number')
         tire_position.wheel_number = request.POST.get('wheel_number')
+        tire_position.axle_type = request.POST.get('axle_type')
         tire_position.is_spare = is_spare
         tire_position.mounted_tire = tire  # This can be None
         tire_position.save()

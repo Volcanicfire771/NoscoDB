@@ -23,7 +23,7 @@ def tire_assignment_list(request):
     # UNMOUNTED tires (for new mount option)
     unmounted_tires = Tire.objects.filter(
         current_position__isnull=True,  # Not mounted anywhere
-        is_scrapped=False  # Not scrapped
+        # is_scrapped=False  # Not scrapped
     ).select_related('status').order_by('serial_number')
     
     # Open work orders
@@ -67,6 +67,9 @@ def tire_assignment_create(request):
             to_position_value = request.POST.get('tire_position_to')
             work_order_id = request.POST.get('work_order')
             inspection_id = request.POST.get('inspection')
+            start_odometer = request.POST.get('start_odometer')
+            end_odometer = request.POST.get('end_odometer')
+            removal_mileage = request.POST.get('removal_mileage')
             assignment_date = request.POST.get('assignment_date')
             removal_date = request.POST.get('removal_date')
             reason_for_removal = request.POST.get('reason_for_removal')
@@ -172,6 +175,9 @@ def tire_assignment_create(request):
                 work_order=work_order,
                 inspection=inspection,
                 assignment_date=assignment_date,
+                start_odometer=start_odometer,
+                end_odometer=end_odometer if end_odometer else None,
+                removal_mileage=removal_mileage if removal_mileage else None,
                 removal_date=removal_date if removal_date else None,
                 reason_for_removal=reason_for_removal if reason_for_removal else '',
                 notes=notes if notes else '',
@@ -189,9 +195,9 @@ def tire_assignment_create(request):
                 )
                 
                 tire.status = discarded_status
-                tire.is_scrapped = True
+                # tire.is_scrapped = True
                 tire.current_position = None
-                tire.current_vehicle = None
+                # tire.current_vehicle = None
                 tire.save()
                 
                 # Clear the position
@@ -214,7 +220,7 @@ def tire_assignment_create(request):
                 
                 # Update tire
                 tire.current_position = to_position
-                tire.current_vehicle = to_position.vehicle
+                # tire.current_vehicle = to_position.vehicle
                 
                 # Update tire status
                 if tire.status.status_name == 'READY':
@@ -283,6 +289,9 @@ def tire_assignment_update(request, id):
             assignment_date = request.POST.get('assignment_date')
             removal_date = request.POST.get('removal_date')
             reason_for_removal = request.POST.get('reason_for_removal')
+            start_odometer = request.POST.get('start_odometer')
+            end_odometer = request.POST.get('end_odometer')
+            removal_mileage = request.POST.get('removal_mileage')
             
             # Get objects
             tire = Tire.objects.get(id=tire_id)
@@ -293,9 +302,9 @@ def tire_assignment_update(request, id):
             
             # VALIDATIONS
             # Check if tire can be assigned
-            if tire.is_scrapped:
-                messages.error(request, 'This tire is scrapped and cannot be assigned!')
-                return redirect('tire_assignment_list')
+            # if tire.is_scrapped:
+            #     messages.error(request, 'This tire is scrapped and cannot be assigned!')
+            #     return redirect('tire_assignment_list')
             
             # Check if positions have changed
             if old_to_position != tire_position_to:
@@ -322,6 +331,9 @@ def tire_assignment_update(request, id):
             tire_assignment.removal_date = removal_date if removal_date else None
             tire_assignment.work_order = work_order
             tire_assignment.inspection = inspection
+            tire_assignment.start_odometer = start_odometer
+            tire_assignment.end_odometer = end_odometer if end_odometer else None
+            tire_assignment.removal_mileage = removal_mileage if removal_mileage else None
             tire_assignment.reason_for_removal = reason_for_removal if reason_for_removal else ''
             tire_assignment.save()
             
